@@ -1,0 +1,31 @@
+"""Locate US-Crystal routines in the JP ROM by masked byte patterns."""
+import re, sys
+from lib import *
+# GB opcode lengths
+L = [1]*256
+for op in [0x06,0x0E,0x16,0x1E,0x26,0x2E,0x36,0x3E,0x18,0x20,0x28,0x30,0x38,0xC6,0xCE,0xD6,0xDE,0xE6,0xEE,0xF6,0xFE,0xE0,0xF0,0xE8,0xF8,0xCB,0x10]:
+    L[op] = 2
+for op in [0x01,0x11,0x21,0x31,0x08,0xC2,0xC3,0xCA,0xD2,0xDA,0xC4,0xCC,0xCD,0xD4,0xDC,0xEA,0xFA]:
+    L[op] = 3
+MASK16 = {0x01,0x11,0x21,0x31,0x08,0xC2,0xC3,0xCA,0xD2,0xDA,0xC4,0xCC,0xCD,0xD4,0xDC,0xEA,0xFA}
+MASK8 = {0xE0, 0xF0}
+def pattern(code, mask_imm8=()):
+    out = b''; i = 0
+    while i < len(code):
+        op = code[i]; n = L[op]
+        if op in MASK16:
+            out += re.escape(bytes([op])) + b'..'
+        elif op in MASK8 or op in mask_imm8:
+            out += re.escape(bytes([op])) + b'.'
+        elif op == 0xC7 + 0x08 or op == 0xCF:  # rst
+            out += re.escape(bytes([op]))
+        else:
+            out += re.escape(code[i:i+n])
+        i += n
+    return out
+def find(rom, name, n, bank=None, off=0, mask_imm8=()):
+    u = US.get(); b, a = u.S[name]; o = fo(b, a) + off
+    pat = pattern(u.us[o:o+n], mask_imm8)
+    rng = (bank*0x4000, bank*0x4000+0x4000) if bank is not None else (0, len(rom))
+    hits = [m.start() for m in re.finditer(pat, rom[rng[0]:rng[1]], re.S)]
+    return [h + rng[0] for h in hits]

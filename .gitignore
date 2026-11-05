@@ -1,0 +1,7 @@
+__pycache__/
+build/
+crystal/
+pkfc/
+ref/
+*.gbc
+*.gb
