@@ -118,7 +118,7 @@ def bank_free_tail(rom, b):
 
 
 class Asm:
-    """JP Crystal script assembler (JP opcode = US opcode, minus 1 for US >= 0x54)"""
+    """JP Crystal script assembler (JP opcode = US opcode, minus 1 for US >= 0x53; US 0x52 farjumptext does not exist)"""
     def __init__(s, base):
         s.base = base; s.b = bytearray(); s.labels = {}; s.fix = []
     def here(s): return s.base + len(s.b)
@@ -163,7 +163,7 @@ class Asm:
     def writetext(s, l): s.db(0x4C); s.dw(l)
     def yesorno(s): s.db(0x4E)
     def jumptextfaceplayer(s, l): s.db(0x51); s.dw(l)
-    def jumptext(s, l): s.db(0x53); s.dw(l)
+    def jumptext(s, l): s.db(0x52); s.dw(l)   # JP has no farjumptext (US 0x52)
     def waitbutton(s): s.db(0x53)
     def promptbutton(s): s.db(0x54)
     def pokepic(s, sp): s.db(0x55, sp)
@@ -202,3 +202,24 @@ class Asm:
     def earthquake(s, n): s.db(0x77, n)
     def elevator(s, l): s.db(0x94); s.dw(l)
     def endifjustbattled2(s): s.db(0x65)
+
+# phase 17 additions
+def _asm_more():
+    A = Asm
+    A.reloadmap = lambda s: s.db(0x7A)
+    A.playmapmusic = lambda s: s.db(0x81)
+    A.setlasttalked = lambda s, o: s.db(0x67, o)
+    A.moveobject = lambda s, o, x, y: s.db(0x71, o, x, y)
+    A.loadvar = lambda s, v, n: s.db(0x1E, v, n)
+    A.faceobject = lambda s, a_, b_: s.db(0x6B, a_, b_)
+    A.writemem = lambda s, ad: (s.db(0x1A), s.dw(ad))
+    A.loadmem = lambda s, ad, v: (s.db(0x1B), s.dw(ad), s.db(v))
+    A.dontrestartmapmusic = lambda s: s.db(0x82)
+    A.farsjump = lambda s, b, l: (s.db(0x04, b), s.dw(l))
+    A.farscall = lambda s, b, l: (s.db(0x01, b), s.dw(l))
+    A.checkflag = lambda s, f: (s.db(0x34), s.dw(f))
+    A.setflag = lambda s, f: (s.db(0x36), s.dw(f))
+    A.iftrue = lambda s, l: (s.db(0x09), s.dw(l))
+    A.special = lambda s, n: (s.db(0x0F), s.dw(n))
+    A.musicfadeout = lambda s, m, n: (s.db(0x80), s.dw(m), s.db(n))
+_asm_more()

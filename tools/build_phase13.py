@@ -317,12 +317,13 @@ if __name__ == '__main__':
 
 # ---------------- helpers for later phases: trainer parties in bank 0x7E
 TG7E, ATTR7E = 0x45B3, 0x4643
+HOOK7E = 0x7F80                     # 7E:7F80-7FFF reserved for small hooks (phase 17)
 
 
 def _areas():
     lo, hi = TR_CODE
     xs = bank_addr(lo); xe = xs + (hi - lo)
-    return [(ATTR7E + NCLS * 7, xs), (xe, 0x8000)]
+    return [(ATTR7E + NCLS * 7, xs), (xe, HOOK7E)]
 
 
 def read_groups7e(rom):
