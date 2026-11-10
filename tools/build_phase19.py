@@ -47,6 +47,11 @@ FOSSILS = [(P12.HELIX_FOSSIL, 0x8A, 'かいのカセキ', 'オムナイト'), (P
            (P12.OLD_AMBER, 0x8E, 'ひみつのコハク', 'プテラ')]
 STRBUF = 0xD071
 ENGINE_VOLCANO = 0x29
+NPC_TRADES = (0x3F, 0x4E57); NPC_TRADES_REF = 0xFCDCF      # ld hl, NPCTrades (16 bytes per trade, 7 trades)
+# Red's Cinnabar Lab trades: (map, object, dialog set, give, get, Red table entry with the nickname, OT name)
+RED_TRADES = [('CinnabarLabTradeRoom', 2, 0, 0x1A, 0x65, 0x7207B, 'ハカセ'),     # Raichu  -> Electrode
+              ('CinnabarLabTradeRoom', 3, 3, 0x30, 0x72, 0x72083, 'ミナコ'),     # Venonat -> Tangela
+              ('CinnabarLabFossilRoom', 2, 0, 0x4D, 0x56, 0x7205B, 'タケシ')]    # Ponyta  -> Seel
 GYM_GATES = [(9, 3, 0x54), (6, 3, 0x54), (6, 6, 0x54), (3, 8, 0x5F), (2, 6, 0x54), (2, 3, 0x54)]   # gate 1-6 (blocks)
 SWITCH_BLOCKS = {   # map: [(block x, block y, block when off, block when on)]  (pokered scripts)
     'PokemonMansion1F': [(12, 6, 0x0E, 0x2D), (8, 3, 0x2D, 0x0E), (10, 8, 0x2D, 0x0E), (13, 13, 0x2D, 0x0E)],
@@ -134,6 +139,18 @@ def main():
                 party_of[(n, o['text'])] = (cid, len(groups[cid - 1]))
     log.append('trainer parties added (bank 7E free %d)' % P13.write_groups7e(rom, groups))
 
+    # ================= Red's in-game trades (appended to Crystal's NPC trade table)
+    f3f, _ = bank_free_tail(rom, 0x3F); sp.set_area(0x3F, f3f + 1, 0x3F * 0x4000 + 0x4000)
+    to = fo(*NPC_TRADES); assert rom[NPC_TRADES_REF:NPC_TRADES_REF + 3] == bytes([0x21, 0x57, 0x4E])
+    table = bytearray(rom[to:to + 16 * 7]); trade_id = {}
+    for k, (mn, tid, dlg, give, get, red_e, ot) in enumerate(RED_TRADES):
+        nick = bytes(RT.R[red_e + 3:red_e + 7])
+        e = bytes([dlg, give, get]) + nick + bytes([0x96, 0x66, 0x00]) + (31415 + 1111 * k).to_bytes(2, 'little') + encode(ot)[:3] + b'\x00'
+        assert len(e) == 16
+        table += e; trade_id[(mn, tid)] = 7 + k
+    nt = sp.put(0x3F, bytes(table)); rom[NPC_TRADES_REF + 1] = nt & 0xFF; rom[NPC_TRADES_REF + 2] = nt >> 8
+    log.append('NPC trades: table moved to 3F:%04X, Red trades = %s' % (nt, sorted(trade_id.values())))
+
     # ================= interior maps
     sw_on = FL.new()                                        # Pokémon Mansion switch
     fossil_pend = {f[0]: FL.new() for f in FOSSILS}; fossil_ready = FL.new()
@@ -194,6 +211,8 @@ def main():
                 texts[lab + 'n'] = RT.raw(0x762B8); texts[lab + 'a'] = RT.raw(0x7626A)
             elif n == 'CinnabarGym' and o['sprite'] == 'SPRITE_GYM_GUIDE':
                 a.label(lab); a.jumptextfaceplayer(lab + 't'); texts[lab + 't'] = RT.raw(0x766ED)
+            elif (n, tid) in trade_id:
+                a.label(lab); a.faceplayer(); a.opentext(); a.db(0x95, trade_id[(n, tid)]); a.waitbutton(); a.closetext(); a.end()
             elif n == 'CinnabarMart' and o['sprite'] == 'SPRITE_CLERK':
                 a.label(lab); a.faceplayer(); a.opentext(); a.db(0x93, 0x00); a.dw(MART_SAFFRON); a.closetext(); a.end()
             elif n == 'CinnabarLabMetronomeRoom' and tid == 1:
@@ -359,36 +378,38 @@ def main():
     me = MapEvents(rom, 'CinnabarIsland')
     a = Asm(sp.here(0x62)); a.bank = 0x62
     blkp = sp.put(0x60, town.blk)
-    # switch blocks / tileset / border (bank 78 code, called from the NEWMAP callback)
-    b = Asm(sp.here(0x78))
-    fb = 0xDA65 + (EV_HOF >> 3)
-    b.db(0xFA); b.dw(fb); b.db(0xCB, 0x47 | ((EV_HOF & 7) << 3), 0xC0)
-    b.db(0x3E, ts_id['Overworld'], 0xEA); b.dw(W_TILESET)
-    b.db(0x3E, 0x43, 0xEA); b.dw(W_BORDER)
-    b.db(0x3E, 0x60, 0xEA); b.dw(W_BLKBANK)
-    b.db(0x3E, blkp & 0xFF, 0xEA); b.dw(W_BLKBANK + 1); b.db(0x3E, blkp >> 8, 0xEA); b.dw(W_BLKBANK + 2); b.db(0xC9)
-    sw_fn = sp.put(0x78, b.done())
-    old_nm = [r for t, r in me.callbacks if t == 5]
-    me.callbacks = [(t, r) for t, r in me.callbacks if t != 5]
-    a.label('cn_nm'); a.callasm(0x78, sw_fn)
-    if old_nm: a.farsjump(old_nm[0][1], old_nm[0][2])
-    else: a.endcallback()
-    me.callbacks.append((5, 'cn_nm'))
+    # Red's layout and the Gen I overworld tileset for good (also after the Hall of Fame)
+    h_ = hdr_index('CinnabarIsland'); ao = me.a['attr_off']
+    rom[h_ + 1] = ts_id['Overworld']
+    rom[ao] = 0x43; rom[ao + 3] = 0x60; rom[ao + 4] = blkp & 0xFF; rom[ao + 5] = blkp >> 8
+    # Routes 20/21 draw Cinnabar's edge with their own (Crystal) tileset: show sea there instead of Red's blocks
+    sea = sp.put(0x60, b'\x43' * 128)
+    for rn in ('Route21', 'Route20'):
+        ra = attrs(rom, hdr_index(rn)); rao = ra['attr_off']
+        for k in range(bin(ra['conn'] & 0xF).count('1')):
+            c = rao + 12 + 12 * k
+            if (rom[c], rom[c + 1]) == cin: rom[c + 2] = sea & 0xFF; rom[c + 3] = sea >> 8
+    # ... and Cinnabar draws Route 21's south edge (Crystal blocks) with Red's tileset: sea as well
+    r21 = attrs(rom, hdr_index('Route21')); f2a, n2a = bank_free_tail(rom, r21['blkbank']); assert n2a > 40
+    sea21 = 0x4000 + (f2a + 1) % 0x4000; rom[f2a + 1:f2a + 1 + 3 * r21['w']] = b'\x43' * (3 * r21['w'])
+    for k in range(bin(me.a['conn'] & 0xF).count('1')):
+        c = ao + 12 + 12 * k
+        if (rom[c], rom[c + 1]) == mapid('Route21'): rom[c + 2] = sea21 & 0xFF; rom[c + 3] = sea21 >> 8
     # warps: Crystal's Pokémon Center door (11,11) is also Red's; Red's other doors only work on Red's map
     gym_x, gym_y = 18, 3
     for nm, (x, y) in (('PokemonMansion1F', (6, 3)), ('CinnabarLab', (6, 9)), ('CinnabarMart', (15, 11))):
         me.warps.append(bytes([y, x, 1 if nm != 'PokemonMansion1F' else 2]) + bytes(mapids[nm]))
     assert len(me.warps) == 4
     me.warps.append(bytes([gym_y, gym_x, 1]) + bytes(mapids['CinnabarGym']))
-    # Red's townspeople (gone after the Hall of Fame); Blue only after it
+    # Red's townspeople; Crystal's Blue only after the Hall of Fame
     tobjs = PM.objects_of('CinnabarIsland')[0]
     texts = {}
     for i, o in enumerate(tobjs):
         L = 'cn_o%d' % i
         b_, p_ = pkmap.text_ptr(0x08, i + 1); _, body = pkmap.text_body(b_, p_); texts[L + 't'] = body
         a.label(L); a.jumptextfaceplayer(L + 't')
-        if o['move'] == 'STAY': me.add_object(SPR[o['sprite']], o['x'], o['y'], P12.FACE.get(o['face'], 6), L, flag=EV_HOF)
-        else: me.add_object(SPR[o['sprite']], o['x'], o['y'], 0x04, L, flag=EV_HOF, rng=0x10)
+        if o['move'] == 'STAY': me.add_object(SPR[o['sprite']], o['x'], o['y'], P12.FACE.get(o['face'], 6), L)
+        else: me.add_object(SPR[o['sprite']], o['x'], o['y'], 0x04, L, rng=0x10)
     blue = me.objs[0]; assert blue[0][0] == 0x07
     blue_fc = blue[0][11] | blue[0][12] << 8; blue_hide, blue_init = FL.new(), FL.new()
     blue[0][11] = blue_hide & 0xFF; blue[0][12] = blue_hide >> 8
@@ -397,29 +418,16 @@ def main():
     a.clearevent(blue_hide); a.checkevent(blue_fc); a.iffalse('cn_obe'); a.setevent(blue_hide)
     a.label('cn_obe'); a.endcallback()
     me.callbacks.append((2, 'cn_ob'))
-    # signs: Crystal's only after the Hall of Fame, Red's only before it (merged where they share a tile)
-    rsigns = PM.objects_of('CinnabarIsland')[3]
-    old = {(y, x): (t, r) for y, x, t, r in me.bgs}
-    nb_ = []
-    for y, x, t, r in me.bgs:
-        if t == 0: nb_.append((y, x, 5, ('ifset', EV_HOF, r)))
-        else: nb_.append((y, x, t, r))
-    for k, (x, y, tconst) in enumerate(rsigns):
+    # signs: Red's (Crystal's signs belonged to the volcanic island; its hidden item stays)
+    me.bgs = [e for e in me.bgs if e[2] not in (0, 1, 2, 3, 4)]
+    for k, (x, y, tconst) in enumerate(PM.objects_of('CinnabarIsland')[3]):
         b_, p_ = pkmap.text_ptr(0x08, len(tobjs) + k + 1); _, body = pkmap.text_body(b_, p_)
         L = 'cn_s%d' % k; texts[L + 't'] = body
-        if (y, x) in old and old[(y, x)][0] == 0:
-            r = old[(y, x)][1]
-            a.label(L); a.checkevent(EV_HOF); a.iffalse(L + 'r'); a.farsjump(r[1], r[2])
-            a.label(L + 'r'); a.jumptext(L + 't')
-            nb_ = [e for e in nb_ if (e[0], e[1]) != (y, x)] + [(y, x, 0, L)]
-        else:
-            a.label(L); a.jumptext(L + 't'); nb_.append((y, x, 6, ('ifset', EV_HOF, L)))
-    me.bgs = nb_
+        a.label(L); a.jumptext(L + 't'); me.bgs.append((y, x, 0, L))
     # the Gym door is locked (phase 20 opens it with the Secret Key)
     texts['cn_lock'] = pkmap.text_body(*pkmap.text_ptr(0x08, 8))[1]
     me.coords.append((0xFF, gym_y + 1, gym_x, 'cn_gym'))
-    a.label('cn_gym'); a.checkevent(EV_HOF); a.iftrue('cn_gyme')
-    a.checkitem(SECRET_KEY); a.iftrue('cn_gyme')
+    a.label('cn_gym'); a.checkitem(SECRET_KEY); a.iftrue('cn_gyme')
     a.db(0x1C, 9); a.ifnotequal(1, 'cn_gyme')                     # readvar VAR_FACING: only when walking up
     a.opentext(); a.writetext('cn_lock'); a.waitbutton(); a.closetext(); a.applymovement(0, 'cn_down')
     a.label('cn_gyme'); a.end()
@@ -429,7 +437,7 @@ def main():
     me.write(a, sp)
     base = a.base; blob = a.done(); assert sp.put(0x62, blob) == base
     me.install(a)
-    log.append('CinnabarIsland: Red layout before the Hall of Fame (tileset %d), events at 62:%04X' % (ts_id['Overworld'], base))
+    log.append('CinnabarIsland: Red layout (tileset %d), events at 62:%04X' % (ts_id['Overworld'], base))
     import build_phase17 as P17
     P17.fix_outdoor_sprites(rom, log)
 
