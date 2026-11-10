@@ -298,7 +298,7 @@ def main():
 
     # ================= trainer parties: Red's Rockets 7-18 (GRUNTM)
     attr_ref = 0x395A4; attr_cur = fo(0x0E, r16(attr_ref + 1))
-    P10.OLD_N = 72
+    P10.OLD_N = P10.NEW_N
     start, Gp, old_end = P10.parse_groups(bytes(rom), attr_cur)
     assert len(Gp[71]) == 4
     rocket = P11.red_parties('RocketData')
@@ -306,7 +306,7 @@ def main():
     grunt = {}
     for k in range(7, 19):
         Gp[GRUNTM - 1].append([encode('したっぱ@'), pb(rocket[k - 1])]); grunt[k] = len(Gp[GRUNTM - 1])
-    T_G = P10.T_GROUPS; NN = 72
+    T_G = P10.T_GROUPS; NN = P10.NEW_N
     attr = bytes(rom[attr_cur:attr_cur + NN * 7])
     tbl_end = T_G + NN * 2
     out = bytearray(); ptrs = []

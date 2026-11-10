@@ -173,7 +173,7 @@ def main():
 
     # ---------------- trainer parties (bank 0x0E): append and re-lay
     import build_phase10 as P10
-    P10.OLD_N = 72
+    P10.OLD_N = P10.NEW_N
     attr_cur0 = fo(0x0E, r16(0x395A5))
     start, Gp, old_end = P10.parse_groups(bytes(rom), attr_cur0)
     assert len(Gp[71]) == 4, len(Gp[71])
@@ -193,7 +193,7 @@ def main():
                 trainer_party[(n, o['text'])] = (MEDIUM, add_party(MEDIUM, names[ni % len(names)], chan[k - 1])); ni += 1
     riv_ids = {key: add_party(BLUE, 'シゲル', riv[3 + i]) for i, key in enumerate(['fire', 'water', 'grass'])}
     # re-lay parties + attributes
-    T_G = P10.T_GROUPS; NN = 72
+    T_G = P10.T_GROUPS; NN = P10.NEW_N
     attr_ref = 0x395A4; attr_cur = fo(0x0E, r16(attr_ref + 1))
     attr = bytes(rom[attr_cur:attr_cur + NN * 7])
     tbl_end = T_G + NN * 2

@@ -6,7 +6,7 @@ working like Red:
    warps; on B4F, no surfing from the stairs at (7,11) until the B3F boulders have fallen ("current too fast").
  * Red's tile-pair collisions (elevation edges of the Cavern tileset) as Crystal side walls -- Mt. Moon gets them too.
  * Articuno (Lv 50): gone after the battle unless the player loses; B4F signs.
-Route 20's cave leads there before the Hall of Fame and to Crystal's Seafoam Gym afterwards.
+Reached from Red's Route 20 (phase 22), also after the Hall of Fame (as in the Pikachu full-color hack).
 Also: Chris's back pic moves out of bank 0A to make room in the Kanto grass wild table; the map scene table moves to
 bank 0x61 (B3F/B4F scene bytes DA63/DA64).
 usage: build_phase21.py IN.gbc OUT.gbc OUT.ips
@@ -49,7 +49,6 @@ WATER = 0x14
 COLL_PIT = 0x60
 MON = PM.MON
 # scenes
-LOADMETATILES_FIX = 0x2177          # LoadMetatiles: add a ; ld l,a ; ld h,0 ; add hl,hl x3 (wraps past 128 blocks)
 SCENES_REF = 0x210F                 # GetMapSceneID: ld a, BANK(MapScenes) ; rst Bankswitch ; ld hl, MapScenes
 SCENE_BYTE = {B3: 0xDA63, B4: 0xDA64}
 # script bits
@@ -105,9 +104,7 @@ def main():
 
     # ================= map ids, Route 20's door
     mapids = {n: (G26, FIRST_MAP + i) for i, (n, g) in enumerate(MAPS)}
-    r20 = mapid('Route20'); gym = mapid('SeafoamGym')
-    ra = attrs(rom, hdr_index('Route20')); rev = parse_events(rom, ra['scbank'], ra['events'])
-    door = [i for i, (o_, w) in enumerate(rev['warps']) if (w[3], w[4]) == gym][0]
+    r20 = mapid('Route20')                  # Red's Route 20 (phase 22): warps 1 / 2 = the two caves
     hc = hdr_index('SeafoamGym')
 
     # ================= flags
@@ -148,10 +145,7 @@ def main():
     pits = {n: {p: COLL_PIT for p in HOLES[n]} for n in HOLES}
     meta2, coll2, blks = pairwalls.variants(cav, meta, bytes(coll), maps, PAIRS, pits)
     nb2 = len(coll2) // 4
-    if nb2 > 128:                                       # pokecrystal docs/bugs_and_glitches: the fix, same size
-        o_ = LOADMETATILES_FIX
-        assert rom[o_:o_ + 7] == bytes([0x87, 0x6F, 0x26, 0x00, 0x29, 0x29, 0x29])
-        rom[o_:o_ + 7] = bytes([0x6F, 0x26, 0x00, 0x29, 0x29, 0x29, 0x29])
+    if nb2 > 128: pairwalls.fix_loadmetatiles(rom)
     am = sp.put(0x61, meta2); ac = sp.put(0x61, coll2)
     t0 = TS.tab + 15 * CAVERN_TS
     rom[t0 + 3] = 0x61; w16(t0 + 4, am); rom[t0 + 6] = 0x61; w16(t0 + 7, ac)
@@ -316,7 +310,7 @@ def main():
         a.label('events'); a.db(0, 0)
         wl = []
         for x, y, dest, wid in warps:
-            wl.append((y, x, door + 1, *r20) if dest == 'LAST_MAP' else (y, x, wid, *mapids[CONST[dest]]))
+            wl.append((y, x, wid, *r20) if dest == 'LAST_MAP' else (y, x, wid, *mapids[CONST[dest]]))
         for k, (x, y) in enumerate(HOLES.get(n, [])):
             wl.append((y, x, land_warp(BELOW[n], k), *mapids[BELOW[n]]))
         for k, (x, y) in enumerate(LAND.get(n, [])):
@@ -379,12 +373,6 @@ def main():
         assert rom[o_] == 0xCD and r16(o_ + 1) == CHECKDIRECTION and rom[o_ + 3] == 0x38, hex(o_)
         w16(o_ + 1, h_)
     log.append('B4F stairs surf check 03:%04X (%d bytes)' % (base3, len(code)))
-
-    # ================= Route 20's cave: Red's Seafoam Islands before the Hall of Fame
-    o_, w = rev['warps'][door]
-    fix = {door: bytes(w)}
-    rom[o_ + 2] = 1; rom[o_ + 3], rom[o_ + 4] = mapids[F1]
-    P15.install_hof_switch(rom, sp, 'Route20', fix, log)
 
     # ================= wild Pokémon (Red) -> Kanto grass table
     p = P15.KANTO_GRASS

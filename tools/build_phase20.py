@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Phase 20: Red's Power Plant (ported from the Pikachu full-color hack) before the Kanto Hall of Fame.
 Voltorb / Electrode disguised as items, Zapdos (Lv 50), items, Red's wild Pokémon.  Route 10's power plant door
-leads there before the Hall of Fame, to Crystal's Power Plant afterwards.
+leads there, also after the Hall of Fame (as in the Pikachu full-color hack).
 usage: build_phase20.py IN.gbc OUT.gbc OUT.ips
 """
 import sys, os, re
@@ -115,11 +115,9 @@ def main():
     rom[hh:hh + 9] = bytes([0x60, FACILITY_TS, 4, aa & 0xFF, aa >> 8, rom[hc + 5], rom[hc + 6], 0x01, 0x00])
     log.append('PowerPlant -> map %d:%d  scripts 63:%04X (%d bytes)' % (*me_id, base, len(blob)))
 
-    # ================= Route 10 door: Red's power plant before the Hall of Fame
+    # ================= Route 10 door: Red's power plant (also after the Hall of Fame, as in the Pikachu full-color hack)
     o_, w = rev['warps'][door]
-    fix = {door: bytes(w)}
     rom[o_ + 2] = 1; rom[o_ + 3], rom[o_ + 4] = me_id
-    P15.install_hof_switch(rom, sp, 'Route10North', fix, log)
 
     # ================= wild Pokémon (Red) -> Kanto grass table
     p = P15.KANTO_GRASS

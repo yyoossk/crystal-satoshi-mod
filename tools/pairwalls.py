@@ -11,7 +11,7 @@ variants(ts, meta, coll, maps, pairs, overrides) -> (meta, coll, {mapname: new b
   maps: {name: MapPort}
   pairs: [(tile1, tile2)]
   overrides: {name: {(x, y): collision}}"""
-from portlib import COLL_FLOOR, COLL_WATER
+from portlib import COLL_FLOOR, COLL_WATER, fo
 
 DIRS = {'R': (1, 0), 'L': (-1, 0), 'U': (0, -1), 'D': (0, 1)}
 OPP = {'R': 'L', 'L': 'R', 'U': 'D', 'D': 'U'}
@@ -22,6 +22,7 @@ BUOY = 0x10                                   # COLL_*_BUOY = water with a side 
 
 def place_walls(ts, mp, coll, pairs, water_tiles):
     """{(x, y): set of wall directions} for one map"""
+    if not pairs: return {}
     P = {frozenset(p) for p in pairs}
     common = set.intersection(*(set(p) for p in pairs)); prefer = min(common) if common else None
     walk = set(ts.passable) | set(water_tiles)
@@ -85,3 +86,38 @@ def variants(ts, meta, coll, maps, pairs, overrides=None, water_tiles=(0x14,)):
                 blk[by * mp.w + bx] = cache[k]
         out[name] = bytes(blk)
     return bytes(meta), bytes(coll), out
+
+
+LOADMETATILES_FIX = 0x2177   # LoadMetatiles: add a ; ld l,a ; ld h,0 ; add hl,hl x3 (wraps past 128 blocks)
+
+
+def fix_loadmetatiles(rom):
+    """pokecrystal docs/bugs_and_glitches: "LoadMetatiles wraps around past 128 blocks" -- the fix, same size"""
+    o = LOADMETATILES_FIX
+    new = bytes([0x6F, 0x26, 0x00, 0x29, 0x29, 0x29, 0x29])
+    if rom[o:o + 7] == new: return
+    assert rom[o:o + 7] == bytes([0x87, 0x6F, 0x26, 0x00, 0x29, 0x29, 0x29])
+    rom[o:o + 7] = new
+
+
+def install(rom, sp, TS, ts_id, ts, maps, pairs, overrides, bank, log):
+    """variant blocks for the tileset ts_id (Tilesets TS): metatiles + collision moved to `bank`;
+    returns {map: new blk}"""
+    def r16(o): return rom[o] | rom[o + 1] << 8
+    e = TS.entry(ts_id)
+    co, mo = fo(e[6], r16_(e, 7)), fo(e[3], r16_(e, 4))
+    coll = bytes(rom[co:co + 4 * ts.nblocks]); meta = bytes(rom[mo:mo + 16 * ts.nblocks])
+    assert meta == bytes(ts.blocks)
+    meta2, coll2, blks = variants(ts, meta, coll, maps, pairs, overrides)
+    nb2 = len(coll2) // 4
+    if nb2 > 128: fix_loadmetatiles(rom)
+    am = sp.put(bank, meta2); ac = sp.put(bank, coll2)
+    t0 = TS.tab + 15 * ts_id
+    rom[t0 + 3] = bank; rom[t0 + 4] = am & 0xFF; rom[t0 + 5] = am >> 8
+    rom[t0 + 6] = bank; rom[t0 + 7] = ac & 0xFF; rom[t0 + 8] = ac >> 8
+    log.append('tileset %s: %d blocks (+%d variants), metatiles %X:%04X collision %X:%04X'
+               % (ts.name, nb2, nb2 - ts.nblocks, bank, am, bank, ac))
+    return blks
+
+
+def r16_(e, i): return e[i] | e[i + 1] << 8

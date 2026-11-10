@@ -47,7 +47,7 @@ H_ENEMYPAL = 0x96F7 + 9                 # bank 02: GetEnemyFrontpicPalettePointe
 TR_CODE = (0x3954B, 0x399BA)            # GetTrainerClassName .. TrainerGroups (code copied as is)
 TR_BANK = 0x7E
 TR_ATTR_REF = 0x395A4                   # in GetTrainerAttributes: ld hl, TrainerClassAttributes
-NCLS = 72
+NCLS = 73                               # Crystal 67 + phase 10's new classes
 PHONE_TG_REF, NAME_TG_REF = 0x2A590, 0xFDAC9
 US_RANGE = (0x557B, 0x599C)             # same code in the US build (labels for far-call search)
 
@@ -316,7 +316,7 @@ if __name__ == '__main__':
 
 
 # ---------------- helpers for later phases: trainer parties in bank 0x7E
-TG7E, ATTR7E = 0x45B3, 0x4643
+TG7E = 0x45B3; ATTR7E = TG7E + 2 * NCLS
 HOOK7E = 0x7F80                     # 7E:7F80-7FFF reserved for small hooks (phase 17)
 
 

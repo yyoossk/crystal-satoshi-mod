@@ -38,6 +38,9 @@ TOWN_WARP = {'PokemonMansion1F': 2, 'CinnabarLab': 3, 'CinnabarMart': 4, 'Cinnab
 EV_HOF = 0x34A
 SECRET_KEY = 0x93                  # unused item slot -> key item ひみつのカギ
 FACILITY_TS = 34
+# Red: PokemonMansion3F .holeCoords and DungeonWarpData (where the player lands)
+MANSION_HOLES = [((16, 14), 'PokemonMansion1F'), ((17, 14), 'PokemonMansion1F'), ((19, 14), 'PokemonMansion2F')]
+MANSION_LAND = {'PokemonMansion1F': (16, 14), 'PokemonMansion2F': (18, 14)}
 SPR = dict(PM.SPR)
 SPR.update({'SPRITE_SILPH_PRESIDENT': 0x0D, 'SPRITE_CLERK': 0x39, 'SPRITE_FISHING_GURU': 0x3B, 'SPRITE_POKEDEX': 0x55, 'SPRITE_GAMBLER': 0x2D,
             'SPRITE_GYM_GUIDE': 0x48})
@@ -107,6 +110,11 @@ def main():
     PM.warp_collisions(allmaps, lambda n: PM.objects_of(n)[:3], log, coll)
     co = TS.coll_off(FACILITY_TS); rom[co:co + len(coll['Facility'])] = coll['Facility']
     ts_id = {'Facility': FACILITY_TS}
+    # Pokémon Mansion 3F: the holes (Crystal pits) -- 3F's hole blocks get their own copies
+    import pairwalls
+    vb = pairwalls.install(rom, sp, TS, FACILITY_TS, tss['Facility'], {'PokemonMansion3F': maps['PokemonMansion3F']}, [],
+                           {'PokemonMansion3F': {p: 0x60 for p, d in MANSION_HOLES}}, 0x61, log)
+    maps['PokemonMansion3F'].blk = vb['PokemonMansion3F']
     for k in ('Overworld', 'Pokecenter', 'Lab'):
         tss[k].coll = coll[k]
         ts_id[k] = TS.add(tss[k], 0x60, log, anim_src=3 if k == 'Overworld' else 5)
@@ -355,6 +363,11 @@ def main():
             if dest == 'LAST_MAP': wl.append((y, x, TOWN_WARP[n]) + cin)
             elif wi in skip or dest not in CONST: wl.append((y, x, 1) + mapids[n])
             else: wl.append((y, x, wid) + mapids[CONST[dest]])
+        if n == 'PokemonMansion3F':                              # the holes, after Red's warps
+            for (x, y), dn in MANSION_HOLES:
+                wl.append((y, x, len(PM.objects_of(dn)[1]) + 1) + mapids[dn])
+        if n in MANSION_LAND:                                    # where the player lands (a warp of its own)
+            x, y = MANSION_LAND[n]; wl.append((y, x, len(warps) + 1) + mapids['PokemonMansion3F'])
         a.db(len(wl))
         for w in wl: a.db(*w)
         a.db(len(coords))
