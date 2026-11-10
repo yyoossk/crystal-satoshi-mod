@@ -32,6 +32,8 @@ for i, s in enumerate(P14.NEW_SPRITES):
 NAMEPOOL = ['タカシ', 'ヒロシ', 'マコト', 'ユウジ', 'ケンタ', 'ショウタ', 'ダイスケ', 'リョウ', 'ナオキ', 'カズヤ',
             'ユミ', 'アヤ', 'ミキ', 'サオリ', 'エミ', 'ナナ']
 TM_NUM = {'TM_BODY_SLAM': 8, 'TM_REST': 44}
+for _i, _m in enumerate(re.findall(r'^\s*add_tm (\w+)', open(PR + '/constants/item_constants.asm', encoding='utf-8').read(), re.M)):
+    TM_NUM.setdefault('TM_' + _m, _i + 1)      # Gen I TM numbers (Crystal TM with the same number)
 
 
 class Flags:
@@ -90,7 +92,7 @@ class Tilesets:
     def coll_off(s, i):
         e = s.entry(i); return fo(e[6], e[7] | e[8] << 8)
 
-    def add(s, ts, data_bank, log):
+    def add(s, ts, data_bank, log, anim_src=5):
         rom = s.rom; sp = s.sp
         i = s.count(); assert i < P15.TS_CAP
         gfx = lz(ts.gfx_raw)
@@ -101,7 +103,7 @@ class Tilesets:
             rom[hole:hole + 0x70] = ts.palmap; a_p = 0x4000 + hole % 0x4000
         else:
             a_p = sp.put(0x13, ts.palmap)
-        anim = s.entry(5)[9:11]
+        anim = s.entry(anim_src)[9:11]
         rom[s.tab + 15 * i:s.tab + 15 * i + 15] = bytes([data_bank, a_g & 0xFF, a_g >> 8, data_bank, a_m & 0xFF, a_m >> 8,
                                                         data_bank, a_c & 0xFF, a_c >> 8]) + anim + b'\x00\x00' + bytes([a_p & 0xFF, a_p >> 8])
         # palettes hook in front of the previous ones
