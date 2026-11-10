@@ -68,7 +68,7 @@ RED_SIGNS = {(9, 15): 0x477B8, (23, 1): 0x477D1}
 
 
 def flag_bit(f):
-    assert 0x800 <= f < 0x800 + 98 * 8
+    assert 0x800 <= f < 0x800 + 95 * 8
     return P15.W_EXTFLAGS + ((f - 0x800) >> 3), f & 7
 
 

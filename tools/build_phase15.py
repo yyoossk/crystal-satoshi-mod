@@ -21,7 +21,7 @@ import build_phase14 as P14
 ITEM = load_consts(PC + '/constants/item_constants.asm')
 MON = load_consts(PC + '/constants/pokemon_constants.asm')
 FREE_EV = json.load(open(SC + '/out/free_events.json'))
-EXT_FLAGS = list(range(0x800, 0x800 + 98 * 8))       # new flag range (DA01-DA62; DA63-DA64 = scene bytes of phase 21)
+EXT_FLAGS = list(range(0x800, 0x800 + 95 * 8))       # new flag range (DA01-DA5F; DA60-DA64 = scene bytes, phases 21/23)
 EVI = [0]
 def newflag():
     f = EXT_FLAGS[EVI[0]]; EVI[0] += 1; return f
@@ -125,7 +125,7 @@ def main():
     assert rom[DLBR_FARCALL] == 0x0A and r16(DLBR_FARCALL + 2) == 0x4000 + lo % 0x4000
     rom[DLBR_FARCALL] = DLBR_BANK; w16(DLBR_FARCALL + 2, 0x4000 + dst % 0x4000)
     rom[lo:hi] = bytes(hi - lo)
-    for b in (0x13, 0x12, 0x7C, 0x7D, 0x78, 0x79, 0x7A, 0x77, 0x76, 0x75):
+    for b in (0x13, 0x12, 0x7C, 0x7D, 0x78, 0x79, 0x7A, 0x77, 0x76, 0x75, 0x62):
         f, n = bank_free_tail(rom, b); sp.set_area(b, f + 1, b * 0x4000 + 0x4000)
 
     # ================= extended event flags
@@ -161,10 +161,10 @@ def main():
             assert old in (COLL_FLOOR, COLL_WALL, v), (n, x, y, hex(old), hex(v))
             ts.coll[4 * b_ + q] = v
     gfx = lz(ts.gfx_raw)
-    a_gfx = sp.put(0x7C, gfx); a_meta = sp.put(0x7C, ts.blocks); a_coll = sp.put(0x7C, bytes(ts.coll))
+    a_gfx = sp.put(0x7C, gfx); a_meta = sp.put(0x62, ts.blocks); a_coll = sp.put(0x62, bytes(ts.coll))
     anim_none = old_tab[15 * 5 + 9:15 * 5 + 11]
     TS_ID = ntab
-    new_tab = bytearray(old_tab + bytes([0x7C, a_gfx & 0xFF, a_gfx >> 8, 0x7C, a_meta & 0xFF, a_meta >> 8, 0x7C, a_coll & 0xFF, a_coll >> 8]) +
+    new_tab = bytearray(old_tab + bytes([0x7C, a_gfx & 0xFF, a_gfx >> 8, 0x62, a_meta & 0xFF, a_meta >> 8, 0x62, a_coll & 0xFF, a_coll >> 8]) +
                         anim_none + b'\x00\x00\x00\x00')
     # bank 0x13 is nearly full: re-lay the mod's palette maps, the tileset table and the CheckBattleScene hook
     # contiguously in the area the mod uses (from phase 11's start)

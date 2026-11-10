@@ -19,5 +19,6 @@ python3 build_phase19.py ../build/p18.gbc ../build/p19.gbc ../build/p19.ips   # 
 python3 build_phase20.py ../build/p19.gbc ../build/p20.gbc ../build/p20.ips   # 無人発電所
 python3 build_phase21.py ../build/p20.gbc ../build/p21.gbc ../build/p21.ips   # ふたごじま
 python3 build_phase22.py ../build/p21.gbc ../build/p22.gbc ../build/p22.ips   # 20ばんすいどう
-cp ../build/p22.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase23.py ../build/p22.gbc ../build/p23.gbc ../build/p23.ips   # チャンピオンロード
+cp ../build/p23.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"

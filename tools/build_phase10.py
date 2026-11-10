@@ -6,6 +6,7 @@
   71 GIOVANNI ロケットだんボス サカキ (pic+colors from the Pikachu full-color hack)
   72 JJ       ロケットだん ムサシとコジロウ (pic+colors from the Pikachu full-color hack)
   73 JR_TRAINER_F ガールスカウト (Red's Jr. Trainer F, pic+colors from the Pikachu full-color hack; parties: later phases)
+  74 TAMER    もうじゅうつかい (Red's Tamer, pic+colors from the Pikachu full-color hack; parties: later phases)
   BLUE (64) renamed ライバル: Shigeru (champion) uses Crystal's Blue picture.
 Class-indexed tables are relocated to free space and every code reference is patched.
 usage: build_phase10.py IN.gbc OUT.gbc OUT.ips
@@ -21,7 +22,7 @@ LZ = PC + '/tools/lzcompress'
 NEWBANK = 0x7C
 
 OLD_N = 67
-NEW = ['LORELEI', 'AGATHA', 'LANCE_K', 'GIOVANNI', 'JJ', 'JR_TRAINER_F']
+NEW = ['LORELEI', 'AGATHA', 'LANCE_K', 'GIOVANNI', 'JJ', 'JR_TRAINER_F', 'TAMER']
 NEW_N = OLD_N + len(NEW)
 CID = {n: OLD_N + 1 + i for i, n in enumerate(NEW)}
 # JP addresses (found by matching the US build)
@@ -35,14 +36,14 @@ PICSBANKS = 0x5126A; PICS_FIX_BASE = 0x12
 NAMESPTR_TRAINER = 0x3389
 T_GYMLEADERS = 0x3D12A; R_GYM = [0x3D11B]; R_KANTOGYM = [0x3D116]
 # Pikachu full-color hack: trainer pics bank 0x13, palettes table (8 bytes / Gen I class)
-PKFC_PICS = {'LORELEI': 0x7413, 'AGATHA': 0x76F1, 'GIOVANNI': 0x630F, 'JJ': 0x798D, 'JR_TRAINER_F': 0x4670}
+PKFC_PICS = {'LORELEI': 0x7413, 'AGATHA': 0x76F1, 'GIOVANNI': 0x630F, 'JJ': 0x798D, 'JR_TRAINER_F': 0x4670, 'TAMER': 0x5B63}
 PKFC_PAL_T = 0x26D71
-PKFC_PAL_I = {'LORELEI': 44, 'AGATHA': 46, 'GIOVANNI': 29, 'JJ': 48, 'JR_TRAINER_F': 6}
+PKFC_PAL_I = {'LORELEI': 44, 'AGATHA': 46, 'GIOVANNI': 29, 'JJ': 48, 'JR_TRAINER_F': 6, 'TAMER': 22}
 CLASS_NAME = {'LORELEI': 'してんのう', 'AGATHA': 'してんのう', 'LANCE_K': 'してんのう',
-              'GIOVANNI': 'ロケットだんボス', 'JJ': 'ロケットだん', 'JR_TRAINER_F': 'ガールスカウト'}
+              'GIOVANNI': 'ロケットだんボス', 'JJ': 'ロケットだん', 'JR_TRAINER_F': 'ガールスカウト', 'TAMER': 'もうじゅうつかい'}
 COPY_FROM = {'LORELEI': 'KAREN', 'AGATHA': 'KAREN', 'LANCE_K': 'CHAMPION', 'GIOVANNI': 'BLAINE', 'JJ': 'GRUNTM',
-             'JR_TRAINER_F': 'PICNICKER'}
-OLDCLS = {'WILL': 11, 'BRUNO': 13, 'KAREN': 14, 'CHAMPION': 16, 'BLAINE': 46, 'GRUNTM': 31, 'BLUE': 64, 'PICNICKER': 53}
+             'JR_TRAINER_F': 'PICNICKER', 'TAMER': 'JUGGLER'}
+OLDCLS = {'WILL': 11, 'BRUNO': 13, 'KAREN': 14, 'CHAMPION': 16, 'BLAINE': 46, 'GRUNTM': 31, 'BLUE': 64, 'PICNICKER': 53, 'JUGGLER': 49}
 
 MON_ALIAS = {'MR_MIME': 'MR__MIME', 'FARFETCHD': 'FARFETCH_D'}
 ESZ = {0: 2, 1: 6, 2: 3, 3: 7}
@@ -197,6 +198,7 @@ def main():
                [[(14, 'EKANS'), (14, 'MEOWTH'), (14, 'KOFFING')], [(25, 'KOFFING'), (25, 'MEOWTH'), (25, 'EKANS')],
                 [(27, 'MEOWTH'), (27, 'ARBOK'), (27, 'WEEZING')], [(31, 'WEEZING'), (31, 'ARBOK'), (31, 'MEOWTH')]]],
         'JR_TRAINER_F': [],
+        'TAMER': [],
     }
     # Shigeru (champion) -> BLUE class, after Blue's own party
     shig = []
