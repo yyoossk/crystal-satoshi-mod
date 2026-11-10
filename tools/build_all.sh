@@ -16,5 +16,6 @@ python3 build_phase16.py ../build/p15.gbc ../build/p16.gbc ../build/p16.ips   # 
 python3 build_phase17.py ../build/p16.gbc ../build/p17.gbc ../build/p17.ips   # シゲル（研究所・22番道路×2・ハナダ）・トキワジムのサカキ
 python3 build_phase18.py ../build/p17.gbc ../build/p18.gbc ../build/p18.ips   # ヤマブキのロケット団
 python3 build_phase19.py ../build/p18.gbc ../build/p19.gbc ../build/p19.ips   # グレンじま（町・ポケモンやしき・研究所・ジム・ショップ）
-cp ../build/p19.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase20.py ../build/p19.gbc ../build/p20.gbc ../build/p20.ips   # 無人発電所
+cp ../build/p20.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
