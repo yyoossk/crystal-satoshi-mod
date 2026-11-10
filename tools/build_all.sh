@@ -14,5 +14,6 @@ python3 build_phase14.py ../build/p13.gbc ../build/p14.gbc ../build/p14.ips   # 
 python3 build_phase15.py ../build/p14.gbc ../build/p15.gbc ../build/p15.ips   # フラグ拡張・おつきみやま
 python3 build_phase16.py ../build/p15.gbc ../build/p16.gbc ../build/p16.ips   # サントアンヌ号・船着き場・マサキの家
 python3 build_phase17.py ../build/p16.gbc ../build/p17.gbc ../build/p17.ips   # シゲル（研究所・22番道路×2・ハナダ）・トキワジムのサカキ
-cp ../build/p17.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase18.py ../build/p17.gbc ../build/p18.gbc ../build/p18.ips   # ヤマブキのロケット団
+cp ../build/p18.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"

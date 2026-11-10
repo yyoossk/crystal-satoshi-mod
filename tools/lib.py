@@ -223,3 +223,4 @@ def _asm_more():
     A.special = lambda s, n: (s.db(0x0F), s.dw(n))
     A.musicfadeout = lambda s, m, n: (s.db(0x80), s.dw(m), s.db(n))
 _asm_more()
+Asm.variablesprite = lambda s, i, spr: s.db(0x6C, i, spr)

@@ -61,7 +61,7 @@ def fix_outdoor_sprites(rom, log):
             if rom[hdr + 2] not in (1, 2): continue
             a = attrs(rom, hdr); ev = parse_events(rom, a['scbank'], a['events'])
             used |= {o[0] for _, o in ev['objs']}
-        miss = sorted(x for x in used - set(lst) if x < 0x67)
+        miss = sorted(x for x in used - set(lst) if x < 0x67 or x >= 0xF0)   # variable sprites need their own entry
         if not miss: continue
         cand = [i for i, x in enumerate(lst) if x in (0x11, 0x1B)] + [i for i in range(12, 23) if lst[i] not in used]
         assert len(cand) >= len(miss), (gi + 1, miss)
