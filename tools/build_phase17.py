@@ -302,6 +302,10 @@ def main():
     e = Asm(sp.here(me.sb)); e.bank = me.sb
     me.write(e, sp); eb = e.base; blob = e.done(); assert sp.put(me.sb, blob) == eb; me.install(e)
     log.append('ViridianGym: Giovanni + new events at %X:%04X (%d bytes)' % (me.sb, eb, len(blob)))
+    # Crystal's Blue (after the Hall of Fame) battled only if the Earth Badge was missing; the badge now comes from
+    # Giovanni, so he checks "beat Blue" (EVENT 04CC, set after his battle) instead
+    bo = fo(0x77, 0x6980); assert rom[bo:bo + 3] == bytes([0x34, 0x2A, 0x00]) and rom[bo + 3] == 0x09
+    rom[bo:bo + 3] = bytes([0x31, 0xCC, 0x04])
 
     # ================= outdoor sprite lists: every NPC sprite on an outdoor map must be in its group's list
     # (otherwise it is drawn with another sprite's graphics).  Unused entries (Will / Karen first) are replaced.
