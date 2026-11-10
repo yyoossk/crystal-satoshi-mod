@@ -22,6 +22,16 @@ SPR_BALL, SPR_BIRD = 0x54, 0x4E
 MON = PM.MON
 
 
+def red_wild(a, lab, oid, txt, sp_, lv):
+    """Red's legendary / item-disguised Pokemon (a 'trainer' with sight 0): the text, the cry, the battle at once;
+    gone afterwards unless the player lost"""
+    a.label(lab); a.opentext(); a.writetext(txt); a.cry(sp_); a.db(0x85); a.closetext()        # waitsfx
+    a.loadwildmon(sp_, lv); a.startbattle()
+    a.db(0x1C, 0x02); a.ifequal(1, lab + 'l')                   # readvar VAR_BATTLERESULT ; LOSE
+    a.disappear(oid)
+    a.label(lab + 'l'); a.reloadmapafterbattle(); a.end()
+
+
 def main():
     src_rom, outrom, outips = sys.argv[1:4]
     orig = open(JP_BASE, 'rb').read()
@@ -70,13 +80,11 @@ def main():
         tid = idx + 1; lab = 'o%d' % tid; oid = tid + 1
         if o['sprite'] == 'SPRITE_POKE_BALL' and o['extra'][0] in ('VOLTORB', 'ELECTRODE'):
             fl = FL.new(); sp_ = MON[o['extra'][0]]; lv = int(o['extra'][1])
-            a.label(lab); a.opentext(); a.writetext('zap'); a.cry(sp_); a.waitbutton(); a.closetext()
-            a.loadwildmon(sp_, lv); a.startbattle(); a.disappear(oid); a.reloadmapafterbattle(); a.end()
+            red_wild(a, lab, oid, 'zap', sp_, lv)
             obj_bytes.append([SPR_BALL, o['y'] + 4, o['x'] + 4, 6, 0, 0xFF, 0xFF, 0, 0, lab, fl])
         elif o['sprite'] == 'SPRITE_BIRD':
             fl = FL.new()
-            a.label(lab); a.faceplayer(); a.opentext(); a.writetext('zd'); a.cry(MON['ZAPDOS']); a.waitbutton(); a.closetext()
-            a.loadwildmon(MON['ZAPDOS'], int(o['extra'][1])); a.startbattle(); a.disappear(oid); a.reloadmapafterbattle(); a.end()
+            red_wild(a, lab, oid, 'zd', MON['ZAPDOS'], int(o['extra'][1]))
             obj_bytes.append([SPR_BIRD, o['y'] + 4, o['x'] + 4, P12.FACE['UP'], 0, 0xFF, 0xFF, 0, 0, lab, fl])
         else:
             fl = FL.new(); a.label(lab); a.db(PM.item_id(o['extra'][0]), 1)
