@@ -401,7 +401,10 @@ def main():
         me.warps.append(bytes([y, x, 1 if nm != 'PokemonMansion1F' else 2]) + bytes(mapids[nm]))
     assert len(me.warps) == 4
     me.warps.append(bytes([gym_y, gym_x, 1]) + bytes(mapids['CinnabarGym']))
-    # Red's townspeople; Crystal's Blue only after the Hall of Fame
+    # Crystal's Blue (who talks about the volcano) is not on Red's island
+    assert me.objs[0][0][0] == 0x07; del me.objs[0]
+    FL.new(); FL.new()                                       # (flags kept reserved)
+    # Red's townspeople
     tobjs = PM.objects_of('CinnabarIsland')[0]
     texts = {}
     for i, o in enumerate(tobjs):
@@ -410,14 +413,6 @@ def main():
         a.label(L); a.jumptextfaceplayer(L + 't')
         if o['move'] == 'STAY': me.add_object(SPR[o['sprite']], o['x'], o['y'], P12.FACE.get(o['face'], 6), L)
         else: me.add_object(SPR[o['sprite']], o['x'], o['y'], 0x04, L, rng=0x10)
-    blue = me.objs[0]; assert blue[0][0] == 0x07
-    blue_fc = blue[0][11] | blue[0][12] << 8; blue_hide, blue_init = FL.new(), FL.new()
-    blue[0][11] = blue_hide & 0xFF; blue[0][12] = blue_hide >> 8
-    a.label('cn_ob'); a.checkevent(EV_HOF); a.iftrue('cn_ob2'); a.setevent(blue_hide); a.endcallback()
-    a.label('cn_ob2'); a.checkevent(blue_init); a.iftrue('cn_obe'); a.setevent(blue_init)
-    a.clearevent(blue_hide); a.checkevent(blue_fc); a.iffalse('cn_obe'); a.setevent(blue_hide)
-    a.label('cn_obe'); a.endcallback()
-    me.callbacks.append((2, 'cn_ob'))
     # signs: Red's (Crystal's signs belonged to the volcanic island; its hidden item stays)
     me.bgs = [e for e in me.bgs if e[2] not in (0, 1, 2, 3, 4)]
     for k, (x, y, tconst) in enumerate(PM.objects_of('CinnabarIsland')[3]):
