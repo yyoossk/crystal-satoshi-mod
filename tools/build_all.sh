@@ -25,5 +25,6 @@ python3 build_phase25.py ../build/p24.gbc ../build/p25.gbc ../build/p25.ips   # 
 python3 build_phase26.py ../build/p25.gbc ../build/p26.gbc ../build/p26.ips   # ニビシティ（赤）・ニビかがくはくぶつかん
 python3 build_phase27.py ../build/p26.gbc ../build/p27.gbc ../build/p27.ips   # 2ばんどうろ（赤）・トキワのもり・ゲート・いあいぎり
 python3 build_phase28.py ../build/p27.gbc ../build/p28.gbc ../build/p28.ips   # サファリゾーン（赤）・サファリゲーム・きんのいれば
-cp ../build/p28.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase29.py ../build/p28.gbc ../build/p29.gbc ../build/p29.ips   # トキワシティ（赤）・とどけもの・ずかん・つなぎ目の描き直し
+cp ../build/p29.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"

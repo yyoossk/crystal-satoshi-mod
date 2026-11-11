@@ -76,7 +76,10 @@ TOWN_WARPS = [(27, 11, 'CeruleanTrashedHouse', 1), (13, 15, 'CeruleanTradeHouse'
 
 def face(o):
     if o[3] == 'STAY': return P12.FACE.get(o[4], 6), 0
-    return (0x04, 0x10) if o[4] == 'LEFT_RIGHT' else (0x05, 0x01)
+    # Crystal: SPRITEMOVEDATA_WALK_UP_DOWN = 4, WALK_LEFT_RIGHT = 5, WANDER = 2; radius byte = (y << 4) | x
+    if o[4] == 'LEFT_RIGHT': return 0x05, 0x01
+    if o[4] == 'UP_DOWN': return 0x04, 0x10
+    return 0x02, 0x11
 
 
 def red_objects(name):
