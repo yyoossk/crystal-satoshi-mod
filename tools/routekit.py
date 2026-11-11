@@ -179,7 +179,7 @@ class Kit:
         return out
 
     @staticmethod
-    def best_offset(d, rg, ng, off0, span=4):
+    def best_offset(d, rg, ng, off0, span=4, depth=False):
         """the offset (blocks) near Red's whose edge best joins the road of route grid rg to neighbour grid ng"""
         best = None
         def deep(g, side):
@@ -191,13 +191,24 @@ class Kit:
             return [all(g[y][W - 1 - k] for k in range(min(3, W))) for y in range(H)]
         side = {'north': ('top', 'bottom'), 'south': ('bottom', 'top'), 'west': ('left', 'right'), 'east': ('right', 'left')}[d]
         re_, ne_ = deep(rg, side[0]), deep(ng, side[1])
+        def reach(g, s_, k):
+            # how far the road goes in from the edge (up to 20 tiles): a road that leads on beats a dead end
+            H, W = len(g), len(g[0]); n_ = 0
+            for t in range(min(20, W if s_ in ('left', 'right') else H)):
+                v = {'top': lambda: g[t][k], 'bottom': lambda: g[H - 1 - t][k], 'left': lambda: g[k][t],
+                     'right': lambda: g[k][W - 1 - t]}[s_]()
+                if not v: break
+                n_ += 1
+            return n_
         for off in range(off0 - span, off0 + span + 1):
             sc = 0
             bad = 0
             for i, p in enumerate(re_):
                 j = i - 2 * off
                 q = 0 <= j < len(ne_) and ne_[j]
-                sc += 1 if (p and q) else 0; bad += 1 if (p and not q) else 0
+                if depth and p and q: sc += reach(rg, side[0], i) + reach(ng, side[1], j)
+                else: sc += 1 if (p and q) else 0
+                bad += 1 if (p and not q) else 0
             key = (sc, -abs(off - off0), -bad)
             if best is None or key > best[0]: best = (key, off)
         return best[1] if best[0][0] > 0 else off0          # no road meets the other side: Red's offset
@@ -257,8 +268,10 @@ class Kit:
     # ---------------------------------------------------------------- wild Pokémon (Red, grass)
     def red_wild(s, mp, red_name):
         rom = s.rom; kg = P27.kanto_grass(rom); p = kg
-        while (rom[p], rom[p + 1]) != mp:
-            assert rom[p] != 0xFF, red_name; p += 47
+        while rom[p] != 0xFF and (rom[p], rom[p + 1]) != mp: p += 47
+        if rom[p] == 0xFF:                                  # not in Crystal's table: appended (room permitting)
+            assert not any(rom[p + 1:p + 48]), ('no room in the Kanto grass table', red_name)
+            rom[p + 47] = 0xFF; s.log.append('Kanto grass: %s added' % red_name)
         t = open(PR + '/data/wild/maps/%s.asm' % red_name, encoding='utf-8').read()
         t = re.sub(r'IF DEF\(_BLUE\).*?ENDC', '', t, flags=re.S)
         rate = int(re.search(r'def_grass_wildmons (\d+)', t).group(1))
@@ -310,6 +323,7 @@ def red_dims(name):
     cs = open(PY + '/constants/map_constants.asm').read()
     c = re.sub(r'(?<=[a-z0-9])(?=[A-Z])', '_', name).upper()
     c = re.sub(r'(?<=[A-Z])(?=[0-9])', '_', c)
+    c = re.sub(r'_(\d)_F$', r'_\1F', c)
     m = re.search(r'map_const %s,\s*(\d+),\s*(\d+)' % c, cs)
     return int(m.group(1)), int(m.group(2))
 
@@ -337,14 +351,14 @@ def kit_more():
         rom[lo:hi] = bytes(hi - lo)
         s.max26 = max(s.max26, first + count - 1)
 
-    def ts_variants(s, ts_id, ts, maps, overrides):
+    def ts_variants(s, ts_id, ts, maps, overrides, pairs=()):
         """variant blocks (doors / edges) of tileset ts_id (Gen I, Tileset object ts) for maps {name: MapPort}"""
         rom = s.rom; e = s.TS.entry(ts_id); am_, ac_ = e[4] | e[5] << 8, e[7] | e[8] << 8
         assert e[3] == e[6] and ac_ > am_; nb0 = (ac_ - am_) // 16
         meta = bytes(rom[fo(e[3], am_):fo(e[3], am_) + 16 * nb0]); coll = bytes(rom[fo(e[6], ac_):fo(e[6], ac_) + 4 * nb0])
         assert meta[:16 * ts.nblocks] == bytes(ts.blocks)
         ts.coll = bytearray(coll[:4 * ts.nblocks])
-        meta2, coll2, blks = pairwalls.variants(ts, meta, coll, maps, [], overrides)
+        meta2, coll2, blks = pairwalls.variants(ts, meta, coll, maps, list(pairs), overrides)
         meta2, coll2, blks = P27.block0_copy(meta2, coll2, blks)
         assert len(coll2) // 4 <= 256
         am = s.sp.put(s.bank, meta2 + coll2); t0 = s.TS.tab + 15 * ts_id
