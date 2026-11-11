@@ -47,5 +47,6 @@ python3 build_phase47.py ../build/p46.gbc ../build/p47.gbc ../build/p47.ips   # 
 python3 build_phase48.py ../build/p47.gbc ../build/p48.gbc ../build/p48.ips   # ポケモンじいさんの家のオーキド・リーグの切り替え（ライジングバッジ）・ジョウトのムサシとコジロウ
 python3 build_phase49.py ../build/p48.gbc ../build/p49.gbc ../build/p49.ips   # ジョウトのセリフ（ウツギはかせ・じょしゅ・ワカバの女の人・お母さんの電話など）
 python3 build_phase50.py ../build/p49.gbc ../build/p50.gbc ../build/p50.ips   # ジョウトの殿堂入りのあと：カントーのジムリーダーと再戦（クリスタルの手持ち）
-cp ../build/p50.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase51.py ../build/p50.gbc ../build/p51.gbc ../build/p51.ips   # グリーンをシゲルに統一（トキワジム・電話）
+cp ../build/p51.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
