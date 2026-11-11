@@ -54,6 +54,32 @@ OAK_LEAD = {10: [D] * 5 + [L] + [D] * 5 + [R_] * 3 + [U], 11: [L] + [D] * 5 + [L
 LAB_DOOR_IN = (4, 11)              # the lab's warp 1
 
 
+# Red: a ledge is jumped only from the right tile (LedgeTiles: standing tile, ledge tile); elsewhere the same tiles are
+# cliff walls.  Over all of Red's overworld maps each (block, quarter) is always one or the other.
+LEDGE_REQ = {0x36: (0, -1, {0x39}), 0x37: (0, -1, {0x2C, 0x39}), 0x27: (1, 0, {0x2C, 0x39}),
+             0x0D: (-1, 0, {0x2C, 0x39}), 0x1D: (-1, 0, {0x2C})}
+
+
+def ledge_keys(ow):
+    """{(block's 16 tile bytes, quarter)} of the real ledges"""
+    import glob
+    cs = open(PY + '/constants/map_constants.asm').read(); st = {}
+    for f in sorted(glob.glob(PY + '/data/maps/headers/*.asm')):
+        m = re.search(r'map_header (\w+), (\w+), OVERWORLD', open(f).read())
+        if not m: continue
+        n, c = m.groups(); mm = re.search(r'map_const %s,\s*(\d+),\s*(\d+)' % c, cs)
+        w, h = int(mm.group(1)), int(mm.group(2)); mp = MapPort(n, ow, w, h, n + '.blk')
+        for y in range(2 * h):
+            for x in range(2 * w):
+                b, q = mp.block_at(x, y); t = ow.quad_tile(b, q)
+                if t not in LEDGE_REQ: continue
+                dx, dy, ok = LEDGE_REQ[t]; nx, ny = x + dx, y + dy
+                v = 0 <= nx < 2 * w and 0 <= ny < 2 * h and ow.quad_tile(*mp.block_at(nx, ny)) in ok
+                st.setdefault((bytes(ow.blocks[16 * b:16 * b + 16]), q), set()).add(v)
+    assert all(len(v) == 1 for v in st.values())
+    return {k for k, v in st.items() if True in v}
+
+
 def main():
     src_rom, outrom, outips = sys.argv[1:4]
     orig = open(JP_BASE, 'rb').read()
@@ -89,12 +115,13 @@ def main():
     e = TS.entry(OVERWORLD_TS); am_, ac_ = e[4] | e[5] << 8, e[7] | e[8] << 8
     assert e[3] == e[6]; nb0 = (ac_ - am_) // 16
     meta = bytes(rom[fo(e[3], am_):fo(e[3], am_) + 16 * nb0]); coll = bytearray(rom[fo(e[6], ac_):fo(e[6], ac_) + 4 * nb0])
-    nl = 0
+    nl = 0; hop_ok = ledge_keys(ow)
     for b_ in range(nb0):
         for q in range(4):
             r_, c_ = ((1, 0), (1, 2), (3, 0), (3, 2))[q]
             t = meta[16 * b_ + 4 * r_ + c_]
-            if t in COLL_HOP and coll[4 * b_ + q] == COLL_WALL: coll[4 * b_ + q] = COLL_HOP[t]; nl += 1
+            if (bytes(meta[16 * b_:16 * b_ + 16]), q) in hop_ok and coll[4 * b_ + q] == COLL_WALL:
+                coll[4 * b_ + q] = COLL_HOP[t]; nl += 1
     ow.coll = bytearray(coll[:4 * ow.nblocks])
     ov = {'PalletTown': {(x, y): P25.warp_override(ow, town, x, y) for x, y, d in PALLET_WARPS}}
     meta2, coll2, blks = pairwalls.variants(ow, meta, bytes(coll), {'PalletTown': town, 'Route1': route}, [], ov)
