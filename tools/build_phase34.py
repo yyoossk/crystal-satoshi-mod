@@ -41,6 +41,7 @@ CR_GATE = {'Route5Gate': 'Route5SaffronGate', 'Route6Gate': 'Route6SaffronGate',
 # Red gate warp indices (1-based) on the Saffron side
 SAFFRON_SIDE = {'Route5Gate': (1, 2), 'Route6Gate': (3, 4), 'Route7Gate': (3, 4), 'Route8Gate': (1, 2)}
 DRINKS = ('FRESH_WATER', 'SODA_POP', 'LEMONADE')
+UNDERGROUND_FIRST_MAP = 139         # phase 43: 26:139-142 = Red's Underground Path entrances on Routes 5-8
 
 
 def main():
@@ -108,10 +109,9 @@ def main():
         rw[rn] = []
         for x, y, d, wi in P25.red_objects(rn)[1]:
             if d.endswith('_GATE'): gname = 'Route%sGate' % rn[5:]; rw[rn].append(W(x, y, wi, gid[gname]))
-            elif d == 'UNDERGROUND_PATH_ROUTE_5': rw[rn].append(W(x, y, 1, mapid('Route5UndergroundPathEntrance')))
-            elif d == 'UNDERGROUND_PATH_ROUTE_6': rw[rn].append(W(x, y, 1, mapid('Route6UndergroundPathEntrance')))
+            elif d.startswith('UNDERGROUND_PATH_ROUTE_'):            # Red's entrances (phase 43's maps)
+                rw[rn].append(W(x, y, wi, (G26, UNDERGROUND_FIRST_MAP + int(d[-1]) - 5)))
             elif d == 'DAYCARE': rw[rn].append(W(x, y, 1, mapid('Route5CleanseTagHouse')))
-            elif d in ('UNDERGROUND_PATH_ROUTE_7', 'UNDERGROUND_PATH_ROUTE_8'): rw[rn].append(None)   # not yet
             else: raise KeyError(d)
     # (the missing ones are the last ones: left out)
     for rn in ROUTES:
@@ -166,8 +166,7 @@ def main():
     K.place_blocks('CeruleanCity', bytes(rom[fo(ca['blkbank'], ca['blk']):][:ca['w'] * ca['h']]), True)
 
     # ================= warps back
-    for rn, cr, idx in (('Route5', 'Route5UndergroundPathEntrance', 4), ('Route6', 'Route6UndergroundPathEntrance', 4),
-                        ('Route5', 'Route5CleanseTagHouse', 5)):
+    for rn, cr, idx in (('Route5', 'Route5CleanseTagHouse', 5),):
         assert K.fix_warps(cr, lambda i, w_: (idx, mapid(rn)) if (w_[3], w_[4]) == mapid(rn) else None)
     for g in GATES:
         doors = [i + 1 for i in range(4) if i + 1 in SAFFRON_SIDE[g]]
