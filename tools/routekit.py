@@ -332,6 +332,7 @@ def red_dims(name):
     c = re.sub(r'(?<=[a-z0-9])(?=[A-Z])', '_', name).upper()
     c = re.sub(r'(?<=[A-Z])(?=[0-9])', '_', c)
     c = re.sub(r'_(\d)_F$', r'_\1F', c)
+    c = re.sub(r'_B_(\d)F$', r'_B\1F', c)
     m = re.search(r'map_const %s,\s*(\d+),\s*(\d+)' % c, cs)
     return int(m.group(1)), int(m.group(2))
 

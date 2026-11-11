@@ -102,6 +102,7 @@ def gen1_text(o, subs):
             o = e + 1
         elif c == 0x01: out += subs[('ram', R[o + 1] | R[o + 2] << 8)]; o += 3
         elif c == 0x09: out += subs[('dec', R[o + 1] | R[o + 2] << 8)]; o += 4
+        elif c == 0x02: out += subs[('bcd', R[o + 1] | R[o + 2] << 8)]; o += 4
         elif c in (0x0B, 0x11): out.append(0x0F); o += 1
         elif c == 0x50: out.append(0x50); return bytes(out)
         elif c == 0x0D and out[-1:] == b'\x50': return bytes(out)     # text_waitbutton, then the end
