@@ -51,5 +51,6 @@ python3 build_phase51.py ../build/p50.gbc ../build/p51.gbc ../build/p51.ips   # 
 python3 build_phase52.py ../build/p51.gbc ../build/p52.gbc ../build/p52.ips   # ライバル（シゲル）の名前を自由に：赤のオーキドの話で名前を決める
 python3 build_phase53.py ../build/p52.gbc ../build/p53.gbc ../build/p53.ips   # オープニングを赤フルカラーから（コピーライト・ゲームフリーク・ゲンガーとニドリーノ・タイトル・曲と効果音）
 python3 build_phase54.py ../build/p53.gbc ../build/p54.gbc ../build/p54.ips   # カントーの殿堂入りとスタッフロールを赤どおりに・戦闘後のセリフの不具合・前のセーブのライバル名
-cp ../build/p54.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase55.py ../build/p54.gbc ../build/p55.gbc ../build/p55.ips   # カントーのジムを赤どおりに（ジムリーダーのセリフ・わざマシン・セキチクはキョウ・ジムの案内人）・はしごで壁に埋まる不具合
+cp ../build/p55.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
