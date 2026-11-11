@@ -3,6 +3,7 @@
  * Red's town (Gen I overworld tileset): Red's people, the Safari Zone's Pokémon on show (Chansey, the Voltorb that
    looks like a Poké Ball, Kangaskhan, Slowpoke, Lapras, the fossil Pokémon you did not choose at Mt. Moon) with
    their signs showing the Pokédex entry (as Red's DisplayPokedex: the Pokémon becomes "seen"), the town signs.
+   Mt. Moon now remembers which fossil was taken (Red's two events), for the fossil sign.
  * Routes 15, 18 and 19 joined to it directly at Red's offsets (no more detours through Crystal's gates).
  * Crystal's Pokémon Center, Mart (Red's goods), Gym, warden's home and Safari Zone office (Red's meeting room)
    behind Red's doors; the Safari Zone gate of phase 28.
@@ -41,6 +42,7 @@ NEW_DOOR = {'FUCHSIA_BILLS_GRANDPAS_HOUSE': 'FuchsiaBillsGrandpasHouse', 'FUCHSI
 MART_GOODS = ('ULTRA_BALL', 'GREAT_BALL', 'SUPER_POTION', 'REVIVE', 'FULL_HEAL', 'SUPER_REPEL')
 CRYSTAL_MART = ('GREAT_BALL', 'ULTRA_BALL', 'SUPER_POTION', 'HYPER_POTION', 'FULL_HEAL', 'MAX_REPEL', 'FLOWER_MAIL')
 GOOD_ROD = 0x3B
+MTMOON_BANK = 0x79                 # phase 15's Mt. Moon B2F scripts
 DOME_FOSSIL, HELIX_FOSSIL = P15.DOME_FOSSIL, P15.HELIX_FOSSIL
 OMANYTE, KABUTO = 138, 140
 DEX_SIGNS = {'TEXT_FUCHSIACITY_CHANSEY_SIGN': 113, 'TEXT_FUCHSIACITY_VOLTORB_SIGN': 100,
@@ -56,12 +58,23 @@ def main():
     rom = bytearray(open(src_rom, 'rb').read())
     sp = Space(rom)
     def r16(o): return rom[o] | rom[o + 1] << 8
-    for b in (TBANK, BANK, DBANK):
+    for b in (TBANK, BANK, DBANK, MTMOON_BANK):
         f, n = bank_free_tail(rom, b); sp.set_area(b, f + 1 if f > b * 0x4000 else f, b * 0x4000 + 0x4000)
     log = []
     FL = PM.Flags(FIRST_FLAG)
     K = RK.Kit(rom, sp, TBANK, FL, log, FIRST_MAP - 1); K.dbank = DBANK
-    got_rod = FL.new()
+    got_rod = FL.new(); got_dome = FL.new(); got_helix = FL.new()
+
+    # ================= Mt. Moon B2F (phase 15): which fossil was taken is remembered (Red: EVENT_GOT_DOME_FOSSIL /
+    # EVENT_GOT_HELIX_FOSSIL); its "setevent (fossil taken)" becomes a call that also sets the fossil's own flag
+    for item, flag in ((DOME_FOSSIL, got_dome), (HELIX_FOSSIL, got_helix)):
+        pat = bytes([0x9D, item, 1, 0x08]); o_ = rom.find(pat); assert o_ > 0 and rom.find(pat, o_ + 1) < 0
+        assert o_ // 0x4000 == MTMOON_BANK and rom[o_ + 6] == 0x49 and rom[o_ + 7] == 0x6D and rom[o_ + 9] == 0x33
+        taken = r16(o_ + 10)
+        s_ = Asm(sp.here(MTMOON_BANK)); s_.bank = MTMOON_BANK
+        s_.setevent(taken); s_.setevent(flag); s_.end()
+        at = sp.put(MTMOON_BANK, s_.done())
+        rom[o_ + 9:o_ + 12] = bytes([0x00, at & 0xFF, at >> 8])                         # scall
     hid = {n: (G26, FIRST_MAP + i) for i, n in enumerate(HOUSES)}
     fu = mapid('FuchsiaCity')
     assert rom[0xC22A:0xC245] == bytes([0xCD, 0xFB, 0x2A, 0xFA, 0xDD, 0xC2, 0xEA, 0x96, 0xD2, 0x3E, 0x3E, 0x21, 0x09, 0x7A, 0xCF,
@@ -120,7 +133,9 @@ def main():
             texts.update(fs_u=und, fs_o=om, fs_k=kb)
             # Red: the dome fossil chosen -> Omanyte here, the helix fossil -> Kabuto (fossil still in the bag, or its
             # Pokémon caught)
-            a.label(L_); a.opentext(); a.checkitem(DOME_FOSSIL); a.iftrue('fs_d'); callasm_l('c_kabuto'); a.iftrue('fs_d')
+            a.label(L_); a.opentext(); a.checkevent(got_dome); a.iftrue('fs_d'); a.checkevent(got_helix); a.iftrue('fs_h')
+            # (saves from before this phase: the fossil in the bag, or its Pokémon caught)
+            a.checkitem(DOME_FOSSIL); a.iftrue('fs_d'); callasm_l('c_kabuto'); a.iftrue('fs_d')
             a.checkitem(HELIX_FOSSIL); a.iftrue('fs_h'); callasm_l('c_omanyte'); a.iftrue('fs_h')
             a.writetext('fs_u'); a.waitbutton(); a.closetext(); a.end()
             a.label('fs_d'); a.writetext('fs_o'); a.closetext(); show(OMANYTE); a.end()
