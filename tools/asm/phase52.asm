@@ -82,6 +82,8 @@ ShowPlayerPic:
 	jr FadeInPic
 
 NameRival:
+	ld hl, RIVAL_NAMED_BYTE
+	set RIVAL_NAMED_BIT, [hl]
 	farcall_ $22, $426D                 ; MovePlayerPicRight
 	ld hl, RivalNameMenuHeader
 	call LoadMenuHeader

@@ -41,3 +41,7 @@ MACRO farcall_ ; bank, address
 	ld hl, \2
 	rst $08
 ENDM
+
+; extended event flag 0x9F6 (phase 52): the rival was named (Oak's speech) -> DA01 + $1F6 / 8, bit 6
+DEF RIVAL_NAMED_BYTE EQU $DA3F
+DEF RIVAL_NAMED_BIT  EQU 6

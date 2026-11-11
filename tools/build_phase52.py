@@ -16,6 +16,7 @@ import redtexts as RT
 CODE_BANK = 0x36
 OAK_MUSIC = 0x2B
 ASM = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'asm')
+SPR_BLUE = 0x07
 GREEN = 0x39                                   # text code: wGreensName
 NAME_BANKS = (0x5D, 0x61, 0x62, 0x6F, 0x71, 0x72, 0x77, 0x78, 0x7A, 0x7B)   # Kanto texts naming the rival
 
@@ -72,6 +73,19 @@ def main():
     hook[11] = (0x598D - (0x59AE + 12)) & 0xFF
     rom[h:h + 12] = hook
     log.append('rival trainer name: class 0x40 -> wGreensName')
+
+    # naming screen of the rival (NAME_RIVAL): Shigeru's overworld sprite (SPRITE_BLUE) when naming wGreensName
+    o = fo(0x04, 0x573F); assert rom[o:o + 5] == bytes([0x11, 0xC0, 0x43, 0x06, 0x30])
+    f, n = bank_free_tail(rom, 0x04); ha = f % 0x4000 + 0x4000 + 1
+    spr = fo(0x05, 0x4727) + 6 * (SPR_BLUE - 1)
+    ba, bb = rom[spr] | rom[spr + 1] << 8, rom[spr + 3]
+    hk = bytes([0x11, 0xC0, 0x43, 0x06, 0x30,                       # Silver
+                0xFA, 0xD0, 0xC6, 0xFE, 0xA6, 0xC0,                 # wNamingScreenDestinationPointer = wGreensName?
+                0xFA, 0xD1, 0xC6, 0xFE, 0xD4, 0xC0,
+                0x11, ba & 0xFF, ba >> 8, 0x06, bb, 0xC9])
+    rom[fo(0x04, ha):fo(0x04, ha) + len(hk)] = hk
+    rom[o:o + 5] = bytes([0xCD, ha & 0xFF, ha >> 8, 0x00, 0x00])
+    log.append('rival naming screen: Shigeru\'s sprite (%X:%04X)' % (bb, ba))
 
     # ---------- new game: no boy/girl question; Red's Oak speech
     o = fo(0x01, 0x5B7E); assert rom[o:o + 2] == bytes([0x3E, 0x41])
