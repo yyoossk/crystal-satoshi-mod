@@ -35,5 +35,6 @@ python3 build_phase35.py ../build/p34.gbc ../build/p35.gbc ../build/p35.ips   # 
 python3 build_phase36.py ../build/p35.gbc ../build/p36.gbc ../build/p36.ips   # 16〜19・21ばんどうろ（赤）・サイクリングロードのゲート・カビゴン・そらをとぶの家
 python3 build_phase37.py ../build/p36.gbc ../build/p37.gbc ../build/p37.ips   # クチバシティ（赤）・船のチケットの確認・ポッポの家・つりおやじ・交換の家
 python3 build_phase38.py ../build/p37.gbc ../build/p38.gbc ../build/p38.ips   # セキチクシティ（赤）・展示のポケモンと図鑑・マサキのおじいさんの家・いいつりざお
-cp ../build/p38.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase39.py ../build/p38.gbc ../build/p39.gbc ../build/p39.ips   # シオンタウン（赤）・フジ老人のポケモンハウス・カラカラの家
+cp ../build/p39.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
