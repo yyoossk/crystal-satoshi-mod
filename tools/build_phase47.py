@@ -98,19 +98,19 @@ def main():
     for i_, (ob, ref) in enumerate(hm.objs):
         if ob[0] == 0x0C: hm.objs[i_][1] = 'mom'
         elif ob[0] == 0x2E: hm.objs[i_][1] = 'neighbour'
-    texts = {'m1': T('あら？　あなたが　カントーから　きた<LINE>サトシくん　ね！<PARA>ヒビキの　ははです<PARA>'
+    texts = {'m1': T('あら？　あなたが　カントーから　きた<LINE><PLAYER>くん　ね！<PARA>ヒビキの　ははです<PARA>'
                      'ウツギはかせから<LINE>はなしは　きいているわ<PARA>けんきゅうじょは　この　まちの<LINE>ひだりうえよ<PARA>'
                      'はかせが　まってるわ！<LINE>いってらっしゃい！'),
-             'm2': T('あら　サトシくん！<LINE>おかえりなさい<PARA>うちの　ヒビキも　サトシくんと<LINE>おなじ　ころに　たびに　でたのよ<PARA>'
+             'm2': T('あら　<PLAYER>くん！<LINE>おかえりなさい<PARA>うちの　ヒビキも<LINE><PLAYER>くんと　おなじ　ころに<CONT>たびに　でたのよ<PARA>'
                      'いまごろ　どこで　なにを<LINE>しているのかしら<……><PARA>つかれたでしょう？<LINE>すこし　やすんでいって！'),
-             'm3': T('あら　サトシくん！<PARA>ヒビキったら　シロガネやまに<LINE>こもって　しゅぎょう　してるらしいの<PARA>'
+             'm3': T('あら　<PLAYER>くん！<PARA>ヒビキったら　シロガネやまに<LINE>こもって　しゅぎょう　してるらしいの<PARA>'
                      'もし　あったら　たまには<LINE>かえって　きなさいって<CONT>つたえてね！<PARA>つかれたでしょう？<LINE>すこし　やすんでいって！'),
-             'm4': T('あら　サトシくん！<LINE>ヒビキに　あったの？<PARA>そう<……>　げんきに　してたのね<PARA>'
-                     'あのこったら　サトシくんと<LINE>しょうぶ　できて<CONT>きっと　うれしかったと　おもうわ<PARA>'
+             'm4': T('あら　<PLAYER>くん！<LINE>ヒビキに　あったの？<PARA>そう<……>　げんきに　してたのね<PARA>'
+                     'あのこったら<LINE><PLAYER>くんと　しょうぶ　できて<CONT>きっと　うれしかったと　おもうわ<PARA>'
                      'つかれたでしょう？<LINE>すこし　やすんでいって！'),
              'mh': T('<PLAYER>の　<POKEMON>は<LINE>みんな　げんきに　なった！'),
              'mb': T('いってらっしゃい！<LINE>むりは　しないでね！'),
-             'n_t': T('こんにちは　サトシくん！<PARA>わたしは　となりの　いえの　もの<LINE>ヒビキくんの　おかあさんと<CONT>'
+             'n_t': T('こんにちは　<PLAYER>くん！<PARA>わたしは　となりの　いえの　もの<LINE>ヒビキくんの　おかあさんと<CONT>'
                       'おしゃべり　しに　きているの'),
              'sign': T('ここは　ヒビキ　のいえ')}
     a.label('mom'); a.faceplayer(); a.opentext()
@@ -131,10 +131,10 @@ def main():
     p = fo(ref[1], ref[2]); rs = bytes(rom[p:p + 64])
     assert rs[:5] == bytes([0x0F, 0x6A, 0x00, 0x6A, 0x47]) and rs[5] == 0x4C and rs[10] == 0x63 and rs[15:18] == bytes([0x5D, RED_CLASS, 1])
     ob[0] = SPRITE_HIBIKI
-    hb_texts = {'hs': T('<……>　！<LINE>サトシさん　ですよね？<PARA>ぼくは　ヒビキ<LINE>ワカバタウンから　きました<PARA>'
+    hb_texts = {'hs': T('<……>　！<LINE><PLAYER>さん　ですよね？<PARA>ぼくは　ヒビキ<LINE>ワカバタウンから　きました<PARA>'
                         'いつか　あなたと<LINE>たたかって　みたかったんだ！<PARA>さあ　しょうぶ　です！'),
                 'hw': T('<……>　まいったなあ！<LINE>やっぱり　つよいや！'),
-                'hl': T('ありがとう　サトシさん！<PARA>もっと　もっと　つよく　なって<LINE>また　あいに　いきます！<PARA>'
+                'hl': T('ありがとう　<PLAYER>さん！<PARA>もっと　もっと　つよく　なって<LINE>また　あいに　いきます！<PARA>'
                         'かあさんに　よろしく！')}
     e_ = rs.index(0x90) + 1; body = bytearray(rs[:e_])
     a.label('hibiki'); a.raw(body[:5]); a.db(0x4C); a.dw('hs'); a.raw(body[8:10]); a.db(0x63); a.dw('hw'); a.dw('hw')
