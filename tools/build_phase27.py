@@ -60,7 +60,7 @@ CONST = {'ROUTE_2_GATE': 'Route2Gate', 'ROUTE_2_TRADE_HOUSE': 'Route2TradeHouse'
 HDR_FROM = {'Route2Gate': ('Route2Gate', 6), 'Route2TradeHouse': ('Route2NuggetHouse', 3),
             'ViridianForestSouthGate': ('Route2Gate', 6), 'ViridianForestNorthGate': ('Route2Gate', 6),
             'ViridianForest': ('IlexForest', 6), 'DiglettsCaveRoute2': ('DiglettsCave', 4)}
-KG_REFS = [0x2A036, 0x2A4AE, 0x2A555]      # ld hl, KantoGrassWildMons
+KG_REFS = [0x2A036, 0x2A202, 0x2A4AE, 0x2A555]   # ld hl / ld de (0x2A202), KantoGrassWildMons
 JW_REFS = [0x2A026, 0x2A217]               # ld hl, JohtoWaterWildMons
 JOHTO_WATER_N = 38
 DIGLETT_ROUTE2_WARP = 3            # Crystal's Diglett's Cave: warp 3 = the Route 2 end
