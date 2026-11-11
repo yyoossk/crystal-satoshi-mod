@@ -7,6 +7,23 @@ from lib import *
 def r16(rom, o): return rom[o] | rom[o + 1] << 8
 
 
+def copy_text(rom, o):
+    """the bytes of a JP Crystal text at o (to the end of the text)"""
+    out = bytearray()
+    ARGS = {0x01: 2, 0x02: 3, 0x09: 3, 0x03: 2, 0x05: 0, 0x06: 0, 0x07: 0, 0x0A: 0, 0x0C: 1, 0x0D: 0, 0x14: 1, 0x15: 0}
+    while True:
+        c = rom[o]
+        if c == 0x00:
+            e = o + 1
+            while rom[e] not in (0x50, 0x57, 0x58): e += 1
+            out += rom[o:e + 1]
+            if rom[e] != 0x50: return bytes(out)
+            o = e + 1
+        elif c == 0x50: out.append(0x50); return bytes(out)
+        elif c in ARGS: out += rom[o:o + 1 + ARGS[c]]; o += 1 + ARGS[c]
+        else: raise ValueError('text command %02X at %X' % (c, o))
+
+
 class MapEvents:
     def __init__(s, rom, name):
         s.rom = rom; s.name = name
@@ -47,8 +64,10 @@ class MapEvents:
             if isinstance(r, str): return r
             kind = r[0]
             if kind == 'keep':
-                assert bank == s.sb, 'trainer objects: events must stay in bank %X' % s.sb
-                return r[1]
+                if bank == s.sb: return r[1]
+                key = ('tr', r[1])                      # a trainer header copied into the new bank
+                if key not in tramp: tramp[key] = 'th%d' % len(tramp)
+                return tramp[key]
             if kind == 'far' and r[1] == bank: return r[2]
             if kind == 'far':
                 key = (r[1], r[2])
@@ -85,6 +104,19 @@ class MapEvents:
             if isinstance(b, tuple): a.dw(b[1]); a.dw(b[2])
             else: a.raw(b)
         for (b, p), l in tramp.items():
+            if b == 'tr':                               # flag, class, id; texts -> text_far stubs; script -> farsjump
+                h = s.rom[fo(s.sb, p):fo(s.sb, p) + 12]
+                a.label(l); a.raw(bytes(h[:4]))
+                for k in range(3):
+                    t = h[4 + 2 * k] | h[5 + 2 * k] << 8
+                    a.dw(l + 't%d' % k if t else 0)
+                a.dw(l + 's')
+                for k in range(3):
+                    t = h[4 + 2 * k] | h[5 + 2 * k] << 8
+                    if t: a.label(l + 't%d' % k); a.raw(copy_text(s.rom, fo(s.sb, t)))     # (JP: no text_far)
+                sc = h[10] | h[11] << 8
+                a.label(l + 's'); a.farsjump(s.sb, sc)
+                continue
             a.label(l); a.farsjump(b, p)
 
     def install(s, a):

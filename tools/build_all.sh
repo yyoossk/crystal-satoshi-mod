@@ -44,5 +44,6 @@ python3 build_phase44.py ../build/p43.gbc ../build/p44.gbc ../build/p44.ips   # 
 python3 build_phase45.py ../build/p44.gbc ../build/p45.gbc ../build/p45.ips   # サント・アンヌ号の出航・船のシゲルが立ち去る
 python3 build_phase46.py ../build/p45.gbc ../build/p46.gbc ../build/p46.ips   # イワヤマトンネル・ディグダのあな・5ばんどうろの育て屋（赤）・29ばんどうろの修正
 python3 build_phase47.py ../build/p46.gbc ../build/p47.gbc ../build/p47.ips   # 殿堂入りのあと：マサラから再開・オーキドのチケット・ワカバタウンへの船・ヒビキの家と母・シロガネやまのヒビキ
-cp ../build/p47.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase48.py ../build/p47.gbc ../build/p48.gbc ../build/p48.ips   # ポケモンじいさんの家のオーキド・リーグの切り替え（ライジングバッジ）・ジョウトのムサシとコジロウ
+cp ../build/p48.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
