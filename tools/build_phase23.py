@@ -4,10 +4,12 @@ Fame), working like Red:
  * Strength boulders on the switches open the way (1F: reset when the player enters 2F, as in Red; 2F: two
    switches; 3F: one switch), the 3F hole (boulders and the player fall to 2F), Red's elevation edges.
  * Red's trainers (Tamer = phase 10's もうじゅうつかい class), items, hidden items, Moltres (Lv 50), wild Pokémon.
-Crystal's Victory Road Gate (north door) and Route 23 (cave) lead there instead of Crystal's Victory Road.
+The exits lead to Red's Route 23 (phase 24).  Crystal's rival (シルバー) battle of Crystal's Victory Road happens here
+on 1F (Johto story: after the Kanto Hall of Fame, with the eight Johto badges), with Crystal's lines and parties.
+Flags shared with phase 24 (Route 23 resets the boulders, as in Red) are written to p23_flags.json.
 usage: build_phase23.py IN.gbc OUT.gbc OUT.ips
 """
-import sys, os, re
+import sys, os, re, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib import *
 from portlib import *
@@ -37,6 +39,16 @@ SPR_BOULDER, SPR_BIRD, SPR_BALL, MV_BOULDER, STD_BOULDER = 0x5A, 0x4E, 0x54, 0x1
 COLL_PIT = 0x60
 W_SCRIPTVAR, W_OBJECTSTRUCT1 = 0xC2DD, 0xD4C9 + 0x28
 MON = PM.MON
+B3_FLAG_I = 194                    # 2F boulder 3 (Red: shown when 3F's boulder falls, hidden again on Route 23)
+# Crystal's rival battle (Crystal's Victory Road, bank 1F) moved to Red's 1F
+EV_KANTO_HOF, EV_RIVAL_VR = 0x034A, 0x06C2
+EV_TOTODILE, EV_CHIKORITA = 0x001C, 0x001D
+CRYSTAL_VR_SCENE = 0xD9AA
+RIVAL1, SPR_SILVER = 0x09, 0x04
+RIVAL_TXT = {'before': 0x6FCD, 'defeat': 0x7041, 'after': 0x708E, 'victory': 0x710B}
+RIVAL_AT, RIVAL_TRIGGER_Y = (3, 16), 16
+MUSIC_RIVAL_ENCOUNTER, MUSIC_RIVAL_AFTER = 0x1F, 0x20
+VAR_X, VAR_Y = 0x12, 0x13
 
 
 def boulder_at_asm(base, table):
@@ -70,6 +82,53 @@ def boulder_at_asm(base, table):
     return bytes(c)
 
 
+def rival_check(a, oid, texts, rom):
+    """Crystal's Victory Road rival scene: the rival comes from the left when the player steps up from the entrance"""
+    a.checkevent(EV_KANTO_HOF); a.iffalse('rv_no')
+    a.readmem(CRYSTAL_VR_SCENE); a.ifnotequal(0, 'rv_no')
+    a.db(0x1C, VAR_Y); a.ifnotequal(RIVAL_TRIGGER_Y, 'rv_no')                    # readvar
+    a.db(0x1C, VAR_X); a.ifequal(8, 'rv_go'); a.ifequal(9, 'rv_go'); a.sjump('rv_no')
+    a.label('rv_go')
+    for f in range(0x1B, 0x23): a.checkflag(f); a.iffalse('rv_no')              # the eight Johto badges
+    a.db(0x1C, VAR_X); a.ifnotequal(9, 'rv_x8')                                  # Crystal: moveobject first (objects
+    a.moveobject(oid, RIVAL_AT[0] + 1, RIVAL_AT[1])                               # appear only near the player)
+    a.label('rv_x8')
+    a.turnobject(0, 2)                                                            # LEFT
+    a.showemote(0, 0, 15)
+    a.special(0x6A)                                                               # FadeOutMusic
+    a.pause(15)
+    a.appear(oid)
+    a.applymovement(oid, 'rv_m4r')
+    a.turnobject(0, 2)
+    a.playmusic(MUSIC_RIVAL_ENCOUNTER)
+    a.opentext(); a.farwritetext(0x1F, RIVAL_TXT['before']); a.waitbutton(); a.closetext()
+    a.setevent(EV_RIVAL_VR)
+    a.checkevent(EV_TOTODILE); a.iftrue('rv_t')
+    a.checkevent(EV_CHIKORITA); a.iftrue('rv_c')
+    for lab, party in (('rv_y', 0x0F), ('rv_t', 0x0D), ('rv_c', 0x0E)):
+        a.label(lab)
+        a.winlosstext('rv_tw', 'rv_tl'); a.setlasttalked(oid); a.loadtrainer(RIVAL1, party); a.startbattle()
+        a.dontrestartmapmusic(); a.reloadmapafterbattle(); a.sjump('rv_after')
+    a.label('rv_after')
+    a.playmusic(MUSIC_RIVAL_AFTER)
+    a.opentext(); a.farwritetext(0x1F, RIVAL_TXT['after']); a.waitbutton(); a.closetext()
+    a.applymovement(oid, 'rv_m4l')
+    a.disappear(oid)
+    a.setmapscene(*mapid('VictoryRoad'), 1)
+    a.playmapmusic()
+    a.end()
+    for k, d in (('r', 0x0F), ('l', 0x0E)):
+        a.label('rv_m4%s' % k); a.db(d, d, d, d, 0x47)
+    def crystal_text(addr):
+        o = fo(0x1F, addr); e = o
+        while rom[e] != 0x57: e += 1
+        assert rom[o] == 0 and 0x50 not in rom[o + 1:e]
+        return bytes(rom[o + 1:e])
+    texts['rv_tw'] = b'\x00' + crystal_text(RIVAL_TXT['defeat'])
+    texts['rv_tl'] = b'\x00' + crystal_text(RIVAL_TXT['victory'])
+    a.label('rv_no')
+
+
 def main():
     src_rom, outrom, outips = sys.argv[1:4]
     orig = open(JP_BASE, 'rb').read()
@@ -84,17 +143,11 @@ def main():
     mapids = {n: (G26, FIRST_MAP + i) for i, (n, g) in enumerate(MAPS)}
     objs_of = {n: PM.objects_of(n) for n, g in MAPS}
 
-    # ================= Crystal's doors -> Red's Victory Road
-    vr = mapid('VictoryRoad')
-    door = {}
-    for owner, dest in (('VictoryRoadGate', (V1, 1)), ('Route23', (V2, 2))):
-        a_ = attrs(rom, hdr_index(owner)); ev = parse_events(rom, a_['scbank'], a_['events'])
-        ws = [i for i, (o_, w) in enumerate(ev['warps']) if (w[3], w[4]) == vr]
-        assert len(ws) == 2, (owner, ws)
-        for i in ws:
-            o_ = ev['warps'][i][0]; rom[o_ + 2] = dest[1]; rom[o_ + 3], rom[o_ + 4] = mapids[dest[0]]
-        door[owner] = (ws[0] + 1, mapid(owner))
-    last = {3: door['VictoryRoadGate'], 4: door['Route23']}       # Red: LAST_MAP warp 3 (1F) / 4 (2F)
+    # Red: LAST_MAP warp 3 (1F) / 4 (2F) = Route 23's warps 3 / 4 (Route 23 is Red's from phase 24 on, same map id)
+    r23 = mapid('Route23')
+    last = {3: (3, r23), 4: (4, r23)}
+    b3_flag = P15.EXT_FLAGS[B3_FLAG_I]
+    export = {'v3_boulders': []}
 
     # ================= Cavern tileset: warps, the hole, switch states, Red's elevation edges
     TS = PM.Tilesets(rom, sp)
@@ -174,7 +227,8 @@ def main():
             tid = idx + 1; lab = 'o%d' % tid; oid = idx + 2
             if o['sprite'] == 'SPRITE_BOULDER':
                 pushable.append(tid)
-                fl = FL.new() if n == V3 else 0xFFFF
+                fl = FL.new() if n == V3 else b3_flag if (n, o['x'], o['y']) == (V2, 23, 16) else 0xFFFF
+                if n == V3: export['v3_boulders'].append(fl)
                 a.label(lab); a.jumpstd(STD_BOULDER)
                 obj_bytes.append([SPR_BOULDER, o['y'] + 4, o['x'] + 4, MV_BOULDER, 0, 0xFF, 0xFF, 0, 0, lab, fl])
             elif o['sprite'] == 'SPRITE_BIRD':
@@ -197,6 +251,10 @@ def main():
             L = 'hi%d' % k; a.label(L); a.dw(FL.new()); a.db(PM.item_id(arg)); bgs.append((y, x, 7, L))
         # ---- switches: Red's per-frame check of a boulder on the switch; the blocks stay changed on reload
         a.label('scene0')
+        if n == V1:
+            rival_check(a, len(obj_bytes) + 2, texts, rom)
+            obj_bytes.append([SPR_SILVER, RIVAL_AT[1] + 4, RIVAL_AT[0] + 4, P12.FACE['RIGHT'], 0, 0xFF, 0xFF, 0, 0, 'end',
+                              EV_RIVAL_VR])
         for k, (xy, _) in enumerate(SWITCHES[n]):
             a.checkevent(sw_fl[(n, k)]); a.iftrue('sw%dn' % k)
             a.db(0x15, sw_index[(n, k)]); a.callasm(0x63, ab); a.iffalse('sw%dn' % k)        # setval ; callasm
@@ -222,9 +280,9 @@ def main():
             a.label('stones')
             for i in pushable: a.db(nred[n] + 1, i + 1); a.dw('fall%d' % i)
             a.db(0xFF)
-            hole_fl = FL.new()
+            hole_fl = FL.new(); export['hole'] = hole_fl
             for i in pushable:
-                a.label('fall%d' % i); a.disappear(i + 1); a.setevent(hole_fl); a.end()
+                a.label('fall%d' % i); a.disappear(i + 1); a.setevent(hole_fl); a.clearevent(b3_flag); a.end()
             callbacks.append((3, 'cb_cq'))
         for k_, v in texts.items():
             a.label(k_); a.raw(P12.text(v))
@@ -280,6 +338,10 @@ def main():
     rom[p:p + len(ent) + 1] = ent + b'\xff'
     log.append('Victory Road wild data (%d bytes)' % len(ent))
 
+    export.update(v2_sw=[sw_fl[(V2, k)] for k in range(len(SWITCHES[V2]))], v3_sw=[sw_fl[(V3, k)] for k in range(len(SWITCHES[V3]))],
+                  v2_boulder3=b3_flag, next_flag=B3_FLAG_I + 1)
+    assert FL.i <= B3_FLAG_I, FL.i
+    json.dump(export, open(os.path.join(os.path.dirname(os.path.abspath(outrom)), 'p23_flags.json'), 'w'))
     fix_checksum(rom)
     open(outrom, 'wb').write(rom)
     open(outips, 'wb').write(ips(orig, bytes(rom)))

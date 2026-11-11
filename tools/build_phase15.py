@@ -21,7 +21,7 @@ import build_phase14 as P14
 ITEM = load_consts(PC + '/constants/item_constants.asm')
 MON = load_consts(PC + '/constants/pokemon_constants.asm')
 FREE_EV = json.load(open(SC + '/out/free_events.json'))
-EXT_FLAGS = list(range(0x800, 0x800 + 95 * 8))       # new flag range (DA01-DA5F; DA60-DA64 = scene bytes, phases 21/23)
+EXT_FLAGS = list(range(0x800, 0x800 + 94 * 8))       # new flag range (DA01-DA5E; DA5F-DA64 = scene bytes, phases 21/23/24)
 EVI = [0]
 def newflag():
     f = EXT_FLAGS[EVI[0]]; EVI[0] += 1; return f
