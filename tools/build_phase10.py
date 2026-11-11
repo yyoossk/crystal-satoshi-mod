@@ -7,6 +7,7 @@
   72 JJ       ロケットだん ムサシとコジロウ (pic+colors from the Pikachu full-color hack)
   73 JR_TRAINER_F ガールスカウト (Red's Jr. Trainer F, pic+colors from the Pikachu full-color hack; parties: later phases)
   74 TAMER    もうじゅうつかい (Red's Tamer, pic+colors from the Pikachu full-color hack; parties: later phases)
+  75-79 (phase 33's routes) Red's ボーイスカウト, でんきやのオヤジ, スキンへッズ, ギャンブラー, でんきグループ
   BLUE (64) renamed ライバル: Shigeru (champion) uses Crystal's Blue picture.
 Class-indexed tables are relocated to free space and every code reference is patched.
 usage: build_phase10.py IN.gbc OUT.gbc OUT.ips
@@ -20,9 +21,12 @@ PKFC = SC + '/pkfc/pkfc.gbc'
 PKMN = PR + '/tools/pkmncompress'
 LZ = PC + '/tools/lzcompress'
 NEWBANK = 0x7C
+PICBANK2 = 0x74                    # free in the JP original (later phases use its free tail)
+LATER = ['JR_TRAINER_M', 'ENGINEER', 'CUE_BALL', 'GAMBLER', 'ROCKER']
 
 OLD_N = 67
-NEW = ['LORELEI', 'AGATHA', 'LANCE_K', 'GIOVANNI', 'JJ', 'JR_TRAINER_F', 'TAMER']
+NEW = ['LORELEI', 'AGATHA', 'LANCE_K', 'GIOVANNI', 'JJ', 'JR_TRAINER_F', 'TAMER',
+       'JR_TRAINER_M', 'ENGINEER', 'CUE_BALL', 'GAMBLER', 'ROCKER']
 NEW_N = OLD_N + len(NEW)
 CID = {n: OLD_N + 1 + i for i, n in enumerate(NEW)}
 # JP addresses (found by matching the US build)
@@ -36,14 +40,21 @@ PICSBANKS = 0x5126A; PICS_FIX_BASE = 0x12
 NAMESPTR_TRAINER = 0x3389
 T_GYMLEADERS = 0x3D12A; R_GYM = [0x3D11B]; R_KANTOGYM = [0x3D116]
 # Pikachu full-color hack: trainer pics bank 0x13, palettes table (8 bytes / Gen I class)
-PKFC_PICS = {'LORELEI': 0x7413, 'AGATHA': 0x76F1, 'GIOVANNI': 0x630F, 'JJ': 0x798D, 'JR_TRAINER_F': 0x4670, 'TAMER': 0x5B63}
+PKFC_PICS = {'LORELEI': 0x7413, 'AGATHA': 0x76F1, 'GIOVANNI': 0x630F, 'JJ': 0x798D, 'JR_TRAINER_F': 0x4670, 'TAMER': 0x5B63,
+             'JR_TRAINER_M': 0x454F, 'ENGINEER': 0x4E96, 'CUE_BALL': 0x52C2, 'GAMBLER': 0x5446, 'ROCKER': 0x5879}
+# (PKFC's TrainerPicAndMoneyPointers at 0E:5C4D)
 PKFC_PAL_T = 0x26D71
-PKFC_PAL_I = {'LORELEI': 44, 'AGATHA': 46, 'GIOVANNI': 29, 'JJ': 48, 'JR_TRAINER_F': 6, 'TAMER': 22}
+PKFC_PAL_I = {'LORELEI': 44, 'AGATHA': 46, 'GIOVANNI': 29, 'JJ': 48, 'JR_TRAINER_F': 6, 'TAMER': 22,
+              'JR_TRAINER_M': 5, 'ENGINEER': 12, 'CUE_BALL': 16, 'GAMBLER': 17, 'ROCKER': 20}
 CLASS_NAME = {'LORELEI': 'してんのう', 'AGATHA': 'してんのう', 'LANCE_K': 'してんのう',
-              'GIOVANNI': 'ロケットだんボス', 'JJ': 'ロケットだん', 'JR_TRAINER_F': 'ガールスカウト', 'TAMER': 'もうじゅうつかい'}
+              'GIOVANNI': 'ロケットだんボス', 'JJ': 'ロケットだん', 'JR_TRAINER_F': 'ガールスカウト', 'TAMER': 'もうじゅうつかい',
+              'JR_TRAINER_M': 'ボーイスカウト', 'ENGINEER': 'でんきやのオヤジ', 'CUE_BALL': 'スキンへッズ', 'GAMBLER': 'ギャンブラー',
+              'ROCKER': 'でんきグループ'}
 COPY_FROM = {'LORELEI': 'KAREN', 'AGATHA': 'KAREN', 'LANCE_K': 'CHAMPION', 'GIOVANNI': 'BLAINE', 'JJ': 'GRUNTM',
-             'JR_TRAINER_F': 'PICNICKER', 'TAMER': 'JUGGLER'}
-OLDCLS = {'WILL': 11, 'BRUNO': 13, 'KAREN': 14, 'CHAMPION': 16, 'BLAINE': 46, 'GRUNTM': 31, 'BLUE': 64, 'PICNICKER': 53, 'JUGGLER': 49}
+             'JR_TRAINER_F': 'PICNICKER', 'TAMER': 'JUGGLER',
+             'JR_TRAINER_M': 'CAMPER', 'ENGINEER': 'SCIENTIST', 'CUE_BALL': 'BIKER', 'GAMBLER': 'GENTLEMAN', 'ROCKER': 'GUITARIST'}
+OLDCLS = {'WILL': 11, 'BRUNO': 13, 'KAREN': 14, 'CHAMPION': 16, 'BLAINE': 46, 'GRUNTM': 31, 'BLUE': 64, 'PICNICKER': 53, 'JUGGLER': 49,
+          'CAMPER': 54, 'SCIENTIST': 20, 'BIKER': 45, 'GENTLEMAN': 32, 'GUITARIST': 43}
 
 MON_ALIAS = {'MR_MIME': 'MR__MIME', 'FARFETCHD': 'FARFETCH_D'}
 ESZ = {0: 2, 1: 6, 2: 3, 3: 7}
@@ -129,8 +140,16 @@ def main():
     rom[PICSBANKS + 24] = NEWBANK                     # overwrites unreferenced GS intro code
     PICBANK_STORED = PICS_FIX_BASE + 24
     pic_entry = {}
+    # the classes added for phase 33 keep their pictures in bank PICBANK2 (a 26th entry of FixPicBank's table: the
+    # function after it is unreferenced)
+    rom[PICSBANKS + 25] = PICBANK2; cur2 = [0x4000]
+    assert not any(rom[PICBANK2 * 0x4000:PICBANK2 * 0x4000 + 0x2000])
     for n, a in PKFC_PICS.items():
         lz, raw = gen1_pic_to_crystal(pk, 0x13, a)
+        if n in LATER:
+            p = cur2[0]; o = PICBANK2 * 0x4000 + p - 0x4000; rom[o:o + len(lz)] = lz; cur2[0] += len(lz)
+            pic_entry[n] = bytes([PICS_FIX_BASE + 25, p & 0xFF, p >> 8])
+            log.append('pic %s: %d bytes @%X:%04X' % (n, len(lz), PICBANK2, p)); continue
         p = put7c(lz)
         pic_entry[n] = bytes([PICBANK_STORED, p & 0xFF, p >> 8])
         log.append('pic %s: %d bytes @7C:%04X' % (n, len(lz), p))
@@ -199,6 +218,7 @@ def main():
                 [(27, 'MEOWTH'), (27, 'ARBOK'), (27, 'WEEZING')], [(31, 'WEEZING'), (31, 'ARBOK'), (31, 'MEOWTH')]]],
         'JR_TRAINER_F': [],
         'TAMER': [],
+        'JR_TRAINER_M': [], 'ENGINEER': [], 'CUE_BALL': [], 'GAMBLER': [], 'ROCKER': [],
     }
     # Shigeru (champion) -> BLUE class, after Blue's own party
     shig = []

@@ -22,6 +22,7 @@ TCLS['ROCKET'] = TCLS['GRUNTM']
 TCLS['SWIMMER'] = TCLS['SWIMMERM']
 TCLS['JR_TRAINER_F'] = 73                     # phase 10: ガールスカウト
 TCLS['TAMER'] = 74                            # phase 10: もうじゅうつかい
+TCLS.update({'JR_TRAINER_M': 75, 'ENGINEER': 76, 'CUE_BALL': 77, 'GAMBLER': 78, 'ROCKER': 79})   # phase 10 (added for phase 33)
 TCLS['COOLTRAINER_M'] = TCLS['COOLTRAINERM']
 TCLS['COOLTRAINER_F'] = TCLS['COOLTRAINERF']
 TCLS['BLACKBELT'] = TCLS['BLACKBELT_T']
