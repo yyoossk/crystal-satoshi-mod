@@ -6,17 +6,20 @@
  * The first voyage of the fast ship from Vermilion goes to New Bark Town (Crystal: Olivine City): the ship's
    announcement and arrival lines say New Bark Town, and the player lands on the shore of New Bark Town.
    Later voyages are Crystal's (Olivine City).
- * New Bark Town's "player's house" is someone else's (an old lady's): no Mom, no Pokégear scene; the neighbour, the
-   kitchen and the sign speak of the old lady.
+ * New Bark Town's "player's house" is the house of Crystal's hero, Hibiki: his mother (new lines, she lets the
+   player's Pokémon rest), no Pokégear scene, the neighbour, the sign "ここは ヒビキ のいえ".
+ * Mt. Silver: Hibiki takes Red's place (Crystal's hero's sprite and picture, his own lines, a Johto team at Red's
+   levels).
 usage: build_phase47.py IN.gbc OUT.gbc OUT.ips
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib import *
 from portlib import *
-from jpchar import encode
+from jpchar import encode, decode
 from evedit import MapEvents
 import build_phase12 as P12
+import build_phase13 as P13
 import build_phase17 as P17
 
 PB = 0x5B                          # handlers / texts
@@ -30,7 +33,14 @@ OAK_TEXT = (0x78, 0x5DC9)          # ...アサギシティへ いくのじゃ！
 SHIP_TEXTS = {0x4748: 0x4848, 0x4770: 0x496C, 0x4E6F: 0x502C}     # bank 1A: writetext sites -> Olivine texts
 SHIP_ARRIVE = 0x477F               # bank 1A: setevent (gangway) ; setmapscene OLIVINE_PORT ; warp OLIVINE_PORT, 7, 23
 NB_LANDING = (17, 7)
-SPRITE_GRANNY = 0x30
+SPRITE_HIBIKI = 0x01               # Crystal's hero (SPRITE_CHRIS)
+EV_BEAT_E4, EV_GOT_ELM_MON, EV_HIBIKI_GONE = 0x44, 0x1A, 0x762
+MUSIC_HEAL, SP_HEALPARTY, SP_RESTARTMUSIC = 0x0D, 27, 0x3D
+RED_CLASS = 0x3F
+HIBIKI_PIC = (0x22, 0x48B2)        # the original's ChrisPic
+PICBANK, PICSBANKS, PICS_FIX_BASE = 0x74, 0x5126A, 0x12
+PIC_TABLE = 0x48CF                 # phase 10's trainer picture table (bank 7C)
+PAL_REF, T_PAL = 0x971D, 0xB08B    # phase 10's trainer palettes (bank 2) / the original's
 
 
 def T(s): return encode('{00}' + s) + b'\x57'
@@ -43,7 +53,7 @@ def main():
     sp = Space(rom)
     def r16(o): return rom[o] | rom[o + 1] << 8
     def w16(o, v): rom[o] = v & 0xFF; rom[o + 1] = v >> 8
-    for b in (PB, 0x01, 0x1A, 0x78, 0x27):
+    for b in (PB, 0x01, 0x1A, 0x78, 0x27, 0x74):
         f, n = bank_free_tail(rom, b); sp.set_area(b, f + 1 if f > b * 0x4000 else f, b * 0x4000 + 0x4000)
     log = []
     nb, h1 = mapid('NewBarkTown'), mapid('PlayersHouse1F')
@@ -82,29 +92,78 @@ def main():
     a.warp(*nb, *NB_LANDING); a.end()
     a.label('arr_o'); a.raw(old_arrive)
     for t, v in nb_texts.items(): a.label('t%X' % t); a.raw(v)
-    # ================= New Bark Town: the old lady's house
+    # ================= New Bark Town: Hibiki's house (Crystal's hero), his mother
     hm = MapEvents(rom, 'PlayersHouse1F')
-    hm.coords = []                                                             # no "meet Mom" scene
+    hm.coords = []                                                             # no "meet Mom" scene (Pokégear)
     for i_, (ob, ref) in enumerate(hm.objs):
-        if ob[0] == 0x0C: ob[0] = SPRITE_GRANNY; hm.objs[i_][1] = 'granny'
+        if ob[0] == 0x0C: hm.objs[i_][1] = 'mom'
         elif ob[0] == 0x2E: hm.objs[i_][1] = 'neighbour'
-    texts = {'g_t': T('あら　いらっしゃい！<LINE>カントーから　きたのかい？<PARA>ウツギはかせの　けんきゅうじょなら<LINE>'
-                      'この　まちの　ひだりうえ　だよ'),
-             'n_t': T('となりの　いえの　ものよ<PARA>ここの　おばあちゃんと<LINE>おしゃべり　しに　きているの'),
-             'stove': T('おばあさんの　とくい　りょうり<LINE>グレンふう　かざんハンバーグ！'),
-             'sink': T('ぴかぴかの　ながしだい！<LINE>おばあさんは　きれいずき'),
-             'sign': T('ここは　おばあさん　のいえ')}
-    a.label('granny'); a.jumptextfaceplayer('g_t')
+    texts = {'m1': T('あら？　あなたが　カントーから　きた<LINE>サトシくん　ね！<PARA>ヒビキの　ははです<PARA>'
+                     'ウツギはかせから<LINE>はなしは　きいているわ<PARA>けんきゅうじょは　この　まちの<LINE>ひだりうえよ<PARA>'
+                     'はかせが　まってるわ！<LINE>いってらっしゃい！'),
+             'm2': T('あら　サトシくん！<LINE>おかえりなさい<PARA>うちの　ヒビキも　サトシくんと<LINE>おなじ　ころに　たびに　でたのよ<PARA>'
+                     'いまごろ　どこで　なにを<LINE>しているのかしら<……><PARA>つかれたでしょう？<LINE>すこし　やすんでいって！'),
+             'm3': T('あら　サトシくん！<PARA>ヒビキったら　シロガネやまに<LINE>こもって　しゅぎょう　してるらしいの<PARA>'
+                     'もし　あったら　たまには<LINE>かえって　きなさいって<CONT>つたえてね！<PARA>つかれたでしょう？<LINE>すこし　やすんでいって！'),
+             'm4': T('あら　サトシくん！<LINE>ヒビキに　あったの？<PARA>そう<……>　げんきに　してたのね<PARA>'
+                     'あのこったら　サトシくんと<LINE>しょうぶ　できて<CONT>きっと　うれしかったと　おもうわ<PARA>'
+                     'つかれたでしょう？<LINE>すこし　やすんでいって！'),
+             'mh': T('<PLAYER>の　<POKEMON>は<LINE>みんな　げんきに　なった！'),
+             'mb': T('いってらっしゃい！<LINE>むりは　しないでね！'),
+             'n_t': T('こんにちは　サトシくん！<PARA>わたしは　となりの　いえの　もの<LINE>ヒビキくんの　おかあさんと<CONT>'
+                      'おしゃべり　しに　きているの'),
+             'sign': T('ここは　ヒビキ　のいえ')}
+    a.label('mom'); a.faceplayer(); a.opentext()
+    a.checkevent(EV_BEAT_E4); a.iftrue('mom_e4')
+    a.checkevent(EV_GOT_ELM_MON); a.iftrue('mom_2')
+    a.writetext('m1'); a.waitbutton(); a.closetext(); a.end()
+    a.label('mom_e4'); a.checkevent(EV_HIBIKI_GONE); a.iftrue('mom_4'); a.writetext('m3'); a.sjump('mom_h')
+    a.label('mom_4'); a.writetext('m4'); a.sjump('mom_h')
+    a.label('mom_2'); a.writetext('m2')
+    a.label('mom_h'); a.waitbutton(); a.closetext()
+    a.playmusic(MUSIC_HEAL); a.special(SP_HEALPARTY); a.pause(60); a.special(SP_RESTARTMUSIC)
+    a.opentext(); a.writetext('mh'); a.waitbutton(); a.writetext('mb'); a.waitbutton(); a.closetext(); a.end()
     a.label('neighbour'); a.jumptextfaceplayer('n_t')
-    a.label('stove_s'); a.jumptext('stove')
-    a.label('sink_s'); a.jumptext('sink')
-    a.label('sign_s'); a.jumptext('sign')
-    hm.bgs = [(y, x, t_, 'stove_s' if k == 0 else 'sink_s' if k == 1 else r_) for k, (y, x, t_, r_) in enumerate(hm.bgs)]
     for k_, v in texts.items(): a.label(k_); a.raw(v)
+    # ================= Mt. Silver: Hibiki in Red's place (Red's script, Hibiki's lines)
+    sv = MapEvents(rom, 'SilverCaveRoom3')
+    ob, ref = sv.objs[0]; assert ob[0] == 0x06
+    p = fo(ref[1], ref[2]); rs = bytes(rom[p:p + 64])
+    assert rs[:5] == bytes([0x0F, 0x6A, 0x00, 0x6A, 0x47]) and rs[5] == 0x4C and rs[10] == 0x63 and rs[15:18] == bytes([0x5D, RED_CLASS, 1])
+    ob[0] = SPRITE_HIBIKI
+    hb_texts = {'hs': T('<……>　！<LINE>サトシさん　ですよね？<PARA>ぼくは　ヒビキ<LINE>ワカバタウンから　きました<PARA>'
+                        'いつか　あなたと<LINE>たたかって　みたかったんだ！<PARA>さあ　しょうぶ　です！'),
+                'hw': T('<……>　まいったなあ！<LINE>やっぱり　つよいや！'),
+                'hl': T('ありがとう　サトシさん！<PARA>もっと　もっと　つよく　なって<LINE>また　あいに　いきます！<PARA>'
+                        'かあさんに　よろしく！')}
+    e_ = rs.index(0x90) + 1; body = bytearray(rs[:e_])
+    a.label('hibiki'); a.raw(body[:5]); a.db(0x4C); a.dw('hs'); a.raw(body[8:10]); a.db(0x63); a.dw('hw'); a.dw('hw')
+    k2 = body.index(0x4C, 15); a.raw(body[15:k2]); a.db(0x4C); a.dw('hl'); a.raw(body[k2 + 3:])
+    for k_, v in hb_texts.items(): a.label(k_); a.raw(v)
     hm.write(a, sp)
     base = a.base; blob = a.done(); assert sp.put(PB, blob) == base
     hm.install(a)
-    log.append('handlers / texts / the old lady\'s house: %X:%04X (%d bytes)' % (PB, base, len(blob)))
+    sv.objs[0][1] = ('far', PB, a.labels['hibiki'])
+    a2 = Asm(sp.here(PB)); a2.bank = PB
+    sv.write(a2, sp)
+    b2 = a2.base; blob2 = a2.done(); assert sp.put(PB, blob2) == b2
+    sv.install(a2)
+    # the trainer: name, party (Red's levels), picture (Crystal's hero), colours
+    grp = P13.read_groups7e(rom)
+    assert decode(grp[RED_CLASS - 1][0][0]) == 'レッド@'
+    mv = lambda lv, sp_, *ms: bytes([lv, sp_, *ms])
+    party = b'\x01' + mv(81, 0xB8, 0x39, 0x3A, 0x26, 0xCD) + mv(73, 0xC4, 0xBD, 0x73, 0x81, 0x5E) + mv(75, 0x8F, 0x85, 0xAD, 0x9C, 0x22) + \
+        mv(77, 0x9A, 0x73, 0x22, 0xEB, 0x4C) + mv(77, 0x9D, 0x35, 0x59, 0x81, 0x62) + mv(77, 0xA0, 0x39, 0xF2, 0xA3, 0x08) + b'\xff'
+    grp[RED_CLASS - 1][0] = [encode('ヒビキ@'), party]
+    log.append('trainer parties (bank 7E free %d)' % P13.write_groups7e(rom, grp))
+    pic = orig[fo(*HIBIKI_PIC):fo(*HIBIKI_PIC) + 784]
+    assert rom[PICSBANKS + 25] == PICBANK
+    pp = sp.put(PICBANK, lz(pic)); te = fo(0x7C, PIC_TABLE) + 3 * (RED_CLASS - 1)
+    rom[te:te + 3] = bytes([PICS_FIX_BASE + 25, pp & 0xFF, pp >> 8])
+    pb = fo(2, r16(PAL_REF + 1)) + 4 * RED_CLASS
+    rom[pb:pb + 4] = orig[T_PAL:T_PAL + 4]
+    log.append('Mt. Silver: Hibiki (picture %X:%04X)' % (PICBANK, pp))
+    log.append('handlers / texts / Hibiki\'s house: %X:%04X (%d bytes)' % (PB, base, len(blob)))
     for site, t in SHIP_TEXTS.items():
         stub = sp.put(0x1A, bytes([0x04, PB, a.labels['h%X' % t] & 0xFF, a.labels['h%X' % t] >> 8]))
         o = fo(0x1A, site); rom[o:o + 3] = bytes([0x00, stub & 0xFF, stub >> 8])                    # scall stub
