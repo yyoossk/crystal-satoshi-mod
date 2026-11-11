@@ -26,5 +26,6 @@ python3 build_phase26.py ../build/p25.gbc ../build/p26.gbc ../build/p26.ips   # 
 python3 build_phase27.py ../build/p26.gbc ../build/p27.gbc ../build/p27.ips   # 2ばんどうろ（赤）・トキワのもり・ゲート・いあいぎり
 python3 build_phase28.py ../build/p27.gbc ../build/p28.gbc ../build/p28.ips   # サファリゾーン（赤）・サファリゲーム・きんのいれば
 python3 build_phase29.py ../build/p28.gbc ../build/p29.gbc ../build/p29.ips   # トキワシティ（赤）・とどけもの・ずかん・つなぎ目の描き直し
-cp ../build/p29.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase30.py ../build/p29.gbc ../build/p30.gbc ../build/p30.ips   # 1ばんどうろ・マサラタウン（赤）・オーキドに連れられて研究所へ・段差
+cp ../build/p30.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"

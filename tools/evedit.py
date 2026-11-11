@@ -59,7 +59,7 @@ class MapEvents:
         def data(b):
             l = 'dt%d' % len(datas); datas.append((l, b)); return l
         a.label('mapscripts'); a.db(len(s.scenes))
-        for p in s.scenes: a.dw(ref(('far', s.sb, p))); a.dw(0)
+        for p in s.scenes: a.dw(p if isinstance(p, str) else ref(('far', s.sb, p))); a.dw(0)
         a.db(len(s.callbacks))
         for t, r in s.callbacks: a.db(t); a.dw(ref(r))
         a.label('events'); a.db(0, 0)
