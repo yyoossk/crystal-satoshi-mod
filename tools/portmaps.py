@@ -82,11 +82,15 @@ def end_battle_texts(g, span=0x900):
     return out
 
 
+TILESETS_BANK = 0x2D0E               # (phase 25 moves the table out of bank 0x13)
+
+
 class Tilesets:
     """custom tilesets: table in bank 0x13 with fixed capacity (phase 15)"""
     def __init__(s, rom, sp):
         s.rom = rom; s.sp = sp
-        s.tab = fo(0x13, rom[R_TILESETS[0]] | rom[R_TILESETS[0] + 1] << 8)
+        assert rom[TILESETS_BANK - 1] == 0x3E                       # LoadTilesetHeader: ld a, BANK(Tilesets)
+        s.tab = fo(rom[TILESETS_BANK], rom[R_TILESETS[0]] | rom[R_TILESETS[0] + 1] << 8)
 
     def count(s):
         n = 0

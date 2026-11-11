@@ -245,27 +245,29 @@ def main():
     a.label('r22_end'); a.end()
     put_map(me, a, texts, movs)
 
-    # ================================================================ Cerulean City (north bridge, x 20/21, y 4)
+    # ================================================================ Cerulean City (north bridge, Red's coordinates:
+    # phase 25 makes Cerulean City Red's and carries these events over)
     me = MapEvents(rom, 'CeruleanCity')
     a = Asm(sp.here(0x62)); a.bank = 0x62
     cer_done = FL.new()
-    rv = me.add_object(SPR_BLUE, 20, 0, P12.FACE['DOWN'], 'cer_talk', flag=cer_hide) + 1
+    rv = me.add_object(SPR_BLUE, 20, 2, P12.FACE['DOWN'], 'cer_talk', flag=cer_hide) + 1
     texts = {'ci': T(0x19D3D), 'cw': T(0x19DA4), 'cl': T(0x19DC5), 'ca': T(0x19DDC)}
-    movs = {'mv_cin': [D, D, D], 'mv_cout': [U, U, U]}
+    # Red: the rival comes down 3 steps; afterwards he steps aside and walks down past the player
+    movs = {'mv_cin': [D, D, D], 'mv_cout20': [R] + [D] * 6, 'mv_cout21': [L] + [D] * 6}
     a.label('cer_talk'); a.end()
     a.label('cer_cb'); a.checkevent(EV_HOF); a.iffalse('cer_cbe'); a.setevent(cer_done)
     a.label('cer_cbe'); a.endcallback()
     me.callbacks.append((2, 'cer_cb'))
     for xp in (20, 21):
         L_ = 'cer%d' % xp
-        me.coords.append((0xFF, 4, xp, L_))
+        me.coords.append((0xFF, 6, xp, L_))
         a.label(L_); a.checkevent(cer_done); a.iftrue('cer_end')
-        a.playmusic(MUS_RIVAL); a.moveobject(rv, xp, 0); a.appear(rv); a.applymovement(rv, 'mv_cin'); a.turnobject(0, TU)
+        a.playmusic(MUS_RIVAL); a.moveobject(rv, xp, 2); a.appear(rv); a.applymovement(rv, 'mv_cin'); a.turnobject(0, TU)
         a.opentext(); a.writetext('ci'); a.waitbutton(); a.closetext()
         rival_battle(a, 'cerb%d' % xp, 'cw', 'cl', obj=rv, pkey='cer')
-        a.disappear(rv); a.moveobject(rv, xp, 3); a.appear(rv); a.turnobject(rv, TD)
+        a.disappear(rv); a.moveobject(rv, xp, 5); a.appear(rv); a.turnobject(rv, TD)
         a.playmusic(MUS_RIVAL_AFTER); a.opentext(); a.writetext('ca'); a.waitbutton(); a.closetext()
-        a.applymovement(rv, 'mv_cout'); a.disappear(rv); a.setevent(cer_done); a.playmapmusic(); a.end()
+        a.applymovement(rv, 'mv_cout%d' % xp); a.disappear(rv); a.setevent(cer_done); a.playmapmusic(); a.end()
     a.label('cer_end'); a.end()
     put_map(me, a, texts, movs)
 

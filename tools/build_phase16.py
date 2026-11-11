@@ -34,6 +34,7 @@ EV_OAK_GOT = {'fire': 0x343, 'water': 0x344, 'grass': 0x345}
 
 def main():
     src_rom, outrom, outips = sys.argv[1:4]
+    EXPORT = {}
     orig = open(JP_BASE, 'rb').read()
     rom = bytearray(open(src_rom, 'rb').read())
     sp = Space(rom)
@@ -220,6 +221,7 @@ def main():
             t_pc = F[0x1FE53:e]
             mon, hum, hum2 = oid['SPRITE_MONSTER'][0], oid['SPRITE_SUPER_NERD'][0], oid['SPRITE_SUPER_NERD'][1]
             s1, s2, s3 = FL.new(), FL.new(), FL.new()
+            EXPORT['got_ss_ticket'] = s3
             h1, h2, h3 = FL.new(), FL.new(), FL.new()
             obj_bytes[mon - 1][10] = h1; obj_bytes[hum - 1][10] = h2; obj_bytes[hum2 - 1][10] = h3
             a.label('cbo')
@@ -288,6 +290,8 @@ def main():
         rom[o_ + 2] = twarp; rom[o_ + 3], rom[o_ + 4] = mapids[target]
         P15.install_hof_switch(rom, sp, mname, fix, log)
 
+    import json
+    json.dump(EXPORT, open(os.path.join(os.path.dirname(os.path.abspath(outrom)), 'p16_flags.json'), 'w'))
     fix_checksum(rom)
     open(outrom, 'wb').write(rom)
     open(outips, 'wb').write(ips(orig, bytes(rom)))
