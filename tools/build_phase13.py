@@ -333,7 +333,7 @@ def read_groups7e(rom):
     groups = []
     for gi, s in enumerate(starts):
         end = min(b for b in bounds if b > s)
-        if s in starts[gi + 1:]:                   # empty group sharing its start with the next one
+        if s in starts[gi + 1:] or any(s == e for _, e in _areas()):   # empty group (sharing its start / at an area's end)
             groups.append([]); continue
         o = base + s; parties = []
         while o < base + end and rom[o] != 0:

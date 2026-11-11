@@ -54,6 +54,7 @@ def connection(d, cur_w, cur_h, tgt, tgt_w, tgt_h, off, tgt_blocks):
 class Kit:
     def __init__(s, rom, sp, bank, FL, log, max26):
         s.rom = rom; s.sp = sp; s.bank = bank; s.FL = FL; s.log = log; s.max26 = max26; s.dims = {}
+        s.dbank = bank                      # where place_blocks puts the blocks (may be set to another bank)
         s.TS = PM.Tilesets(rom, sp)
         s.ow = Tileset('Overworld', 0, 'overworld.bst', SC + '/out/pk_overworld.pkl', water=0x14, grass=0x52)
         s.party_of = {}
@@ -181,24 +182,25 @@ class Kit:
     def best_offset(d, rg, ng, off0, span=4):
         """the offset (blocks) near Red's whose edge best joins the road of route grid rg to neighbour grid ng"""
         best = None
+        def deep(g, side):
+            # edge tiles that lead on: passable there and on the next two rows / columns inward
+            H, W = len(g), len(g[0])
+            if side == 'top': return [all(g[k][x] for k in range(min(3, H))) for x in range(W)]
+            if side == 'bottom': return [all(g[H - 1 - k][x] for k in range(min(3, H))) for x in range(W)]
+            if side == 'left': return [all(g[y][k] for k in range(min(3, W))) for y in range(H)]
+            return [all(g[y][W - 1 - k] for k in range(min(3, W))) for y in range(H)]
+        side = {'north': ('top', 'bottom'), 'south': ('bottom', 'top'), 'west': ('left', 'right'), 'east': ('right', 'left')}[d]
+        re_, ne_ = deep(rg, side[0]), deep(ng, side[1])
         for off in range(off0 - span, off0 + span + 1):
             sc = 0
-            if d in ('north', 'south'):
-                rr = rg[0] if d == 'north' else rg[-1]; nr = ng[-1] if d == 'north' else ng[0]
-                for x, p in enumerate(rr):
-                    xn = x - 2 * off
-                    q = 0 <= xn < len(nr) and nr[xn]
-                    sc += 2 if (p and q) else (-1 if p != q and 0 <= xn < len(nr) else 0)
-            else:
-                rc = [r[0] for r in rg] if d == 'west' else [r[-1] for r in rg]
-                nc = [r[-1] for r in ng] if d == 'west' else [r[0] for r in ng]
-                for y, p in enumerate(rc):
-                    yn = y - 2 * off
-                    q = 0 <= yn < len(nc) and nc[yn]
-                    sc += 2 if (p and q) else (-1 if p != q and 0 <= yn < len(nc) else 0)
-            key = (sc, -abs(off - off0))
+            bad = 0
+            for i, p in enumerate(re_):
+                j = i - 2 * off
+                q = 0 <= j < len(ne_) and ne_[j]
+                sc += 1 if (p and q) else 0; bad += 1 if (p and not q) else 0
+            key = (sc, -abs(off - off0), -bad)
             if best is None or key > best[0]: best = (key, off)
-        return best[1]
+        return best[1] if best[0][0] > 0 else off0          # no road meets the other side: Red's offset
 
     # ---------------------------------------------------------------- blocks of a map, both versions, all pointers
     def place_blocks(s, name, blk, red):
@@ -208,9 +210,9 @@ class Kit:
         assert len(blk) == a['w'] * a['h'], (name, len(blk), a['w'], a['h'])
         if red: g1, cr = blk, X.translate(blk, s.g1side, s.crside)
         else: cr, g1 = blk, X.translate(blk, s.crside, s.g1side)
-        pn = s.sp.put(s.bank, g1 if red else cr); px = s.sp.put(s.bank, cr if red else g1)
+        pn = s.sp.put(s.dbank, g1 if red else cr); px = s.sp.put(s.dbank, cr if red else g1)
         p_g1, p_cr = (pn, px) if red else (px, pn)
-        ao = a['attr_off']; rom[ao + 3] = s.bank; s.w16(ao + 4, pn)
+        ao = a['attr_off']; rom[ao + 3] = s.dbank; s.w16(ao + 4, pn)
         tgt = mapid(name); n_ = 0
         for hdr in s.all_headers():
             g1owner = rom[hdr + 1] in GEN1_OUTDOOR_TS
@@ -315,3 +317,84 @@ def red_dims(name):
 def red_conns(name):
     t = open(PR + '/data/maps/headers/%s.asm' % name).read()
     return [(d, n, int(o)) for d, n, c, o in re.findall(r'connection (\w+), (\w+), (\w+), (-?\d+)', t)]
+
+
+def kit_more():
+    def alloc_headers(s, first, count):
+        """group 26 header slots first .. first+count-1 (map attributes lying there are moved to s.bank)"""
+        rom = s.rom; G = s.G
+        lo, hi = GROUP26_END + 9 * (first - G26_COUNT - 1), GROUP26_END + 9 * (first - G26_COUNT - 1 + count)
+        for gi in range(26):
+            n_ = (G[gi + 1] - G[gi]) // 9 if gi + 1 < 26 else first - 1
+            for k in range(n_):
+                hdr = G[gi] + 9 * k
+                if not rom[hdr]: continue
+                ab = rom[hdr]; ap = r16(rom, hdr + 3); ao_ = fo(ab, ap)
+                nconn = bin(rom[ao_ + 11] & 0xF).count('1'); size = 12 + 12 * nconn
+                if ao_ < hi and ao_ + size > lo:
+                    rom[hdr] = s.bank; s.w16(hdr + 3, s.sp.put(s.bank, bytes(rom[ao_:ao_ + size])))
+                    s.log.append('moved map attributes %X:%04X' % (ab, ap))
+        rom[lo:hi] = bytes(hi - lo)
+        s.max26 = max(s.max26, first + count - 1)
+
+    def ts_variants(s, ts_id, ts, maps, overrides):
+        """variant blocks (doors / edges) of tileset ts_id (Gen I, Tileset object ts) for maps {name: MapPort}"""
+        rom = s.rom; e = s.TS.entry(ts_id); am_, ac_ = e[4] | e[5] << 8, e[7] | e[8] << 8
+        assert e[3] == e[6] and ac_ > am_; nb0 = (ac_ - am_) // 16
+        meta = bytes(rom[fo(e[3], am_):fo(e[3], am_) + 16 * nb0]); coll = bytes(rom[fo(e[6], ac_):fo(e[6], ac_) + 4 * nb0])
+        assert meta[:16 * ts.nblocks] == bytes(ts.blocks)
+        ts.coll = bytearray(coll[:4 * ts.nblocks])
+        meta2, coll2, blks = pairwalls.variants(ts, meta, coll, maps, [], overrides)
+        meta2, coll2, blks = P27.block0_copy(meta2, coll2, blks)
+        assert len(coll2) // 4 <= 256
+        am = s.sp.put(s.bank, meta2 + coll2); t0 = s.TS.tab + 15 * ts_id
+        rom[t0 + 3] = s.bank; s.w16(t0 + 4, am); rom[t0 + 6] = s.bank; s.w16(t0 + 7, am + len(meta2))
+        for n in maps: maps[n].blk = blks[n]
+        s.log.append('tileset %d: %d blocks (+%d)' % (ts_id, len(coll2) // 4, len(coll2) // 4 - nb0))
+
+    def make_map(s, num, mp, ts_id, border, hdr_src, env, a, label):
+        """map 26:num from MapPort mp; events / scripts emitted in Asm a under label (emit); header bytes 5-8 from
+        Crystal map hdr_src"""
+        rom = s.rom; blkp = s.sp.put(s.bank, mp.blk)
+        aa = s.sp.put(s.bank, bytes([border, mp.h, mp.w, s.bank, blkp & 0xFF, blkp >> 8, a.bank,
+                                     a.labels[label + 'ms'] & 0xFF, a.labels[label + 'ms'] >> 8,
+                                     a.labels[label + 'ev'] & 0xFF, a.labels[label + 'ev'] >> 8, 0]))
+        hs = hdr_index(hdr_src); hh = GROUP26_END + 9 * (num - G26_COUNT - 1)
+        rom[hh:hh + 9] = bytes([s.bank, ts_id, env, aa & 0xFF, aa >> 8]) + rom[hs + 5:hs + 9]
+
+    def fix_warps(s, name_or_hdr, fn):
+        """fn(index, warp bytes) -> (warp id, (group, map)) or None, for each warp of a map"""
+        rom = s.rom
+        h = hdr_index(name_or_hdr) if isinstance(name_or_hdr, str) else name_or_hdr
+        a_ = attrs(rom, h); ev = parse_events(rom, a_['scbank'], a_['events']); n_ = 0
+        for i, (o_, w_) in enumerate(ev['warps']):
+            r_ = fn(i, w_)
+            if r_: rom[o_ + 2] = r_[0]; rom[o_ + 3:o_ + 5] = bytes(r_[1]); n_ += 1
+        return n_
+
+    def warps_of(s, name):
+        a_ = attrs(s.rom, hdr_index(name)); return [bytes(w) for _, w in parse_events(s.rom, a_['scbank'], a_['events'])['warps']]
+
+    def crystal_blocks(s, name):
+        a_ = attrs(s.rom, hdr_index(name)); return bytes(s.rom[fo(a_['blkbank'], a_['blk']):][:a_['w'] * a_['h']])
+
+    Kit.alloc_headers = alloc_headers; Kit.ts_variants = ts_variants; Kit.make_map = make_map
+    Kit.fix_warps = fix_warps; Kit.warps_of = warps_of; Kit.crystal_blocks = crystal_blocks
+
+
+kit_more()
+
+
+def warp_overrides(ts, mp, warps):
+    """collision of a map's warp tiles: as phase 25's warp_override, but a door two tiles high on a building's side
+    (Red's gates) is entered sideways, one two tiles wide on its top / bottom vertically"""
+    pts = {(x, y) for x, y, *_ in warps}; out = {}
+    def wall(x, y):
+        if not (0 <= x < 2 * mp.w and 0 <= y < 2 * mp.h): return False
+        return ts.quad_tile(*mp.block_at(x, y)) not in ts.passable and (x, y) not in pts
+    for x, y, *_ in warps:
+        if ((x, y - 1) in pts or (x, y + 1) in pts) and (wall(x - 1, y) or wall(x + 1, y)):
+            out[(x, y)] = COLL_CARPET['left'] if wall(x - 1, y) else COLL_CARPET['right']
+        else:
+            out[(x, y)] = P25.warp_override(ts, mp, x, y)
+    return out
