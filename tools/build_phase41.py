@@ -4,7 +4,7 @@ no longer reached):
  * Department Store 1F-5F, the roof and the elevator (1F-5F): the receptionist, Red's shops (2F: medicine / TMs,
    4F: Poké Doll and the evolution stones, 5F: X items / vitamins), the 3F clerk who gives TM18, the video game corner
    (Super Famicoms, posters), the roof's vending machines (Fresh Water / Soda Pop / Lemonade, as Crystal's) and the
-   thirsty little girl who gives TM13 / TM48 / TM49 for them.
+   thirsty little girl who gives TM13 / TM48 / TM49 for them (Red: she lists only the drinks in the bag).
  * Mansion 1F-3F, the roof and the roof house: the landlady and her Pokémon (they cry), the PC, Game Freak's room (the
    game designer shows the diploma once 150 kinds are caught), the Eevee in the Poké Ball (Lv25).
 usage: build_phase41.py IN.gbc OUT.gbc OUT.ips
@@ -147,8 +147,28 @@ def main():
         for it, fl, yay, tm in drinks: a.checkitem(it); a.iftrue(lab + 'h')
         a.writetext('rg_cry'); a.waitbutton(); a.closetext(); a.end()
         a.label(lab + 'h'); a.writetext('rg_ask'); a.yesorno(); a.iffalse('rg_e')
-        a.db(0x4F); a.dw('rg_mh'); a.db(0x58); a.db(0x50)                       # loadmenu ; verticalmenu ; closewindow
-        for k in range(3): a.ifequal(k + 1, 'rg_d%d' % k)
+        # Red: "which one?" and a list of the drinks in the bag only (top left; B = cancel)
+        T('rg_which', 0x12, 0x483E); a.writetext('rg_which')
+        def tree(have, k):
+            if k == 3:
+                combo = [i for i in range(3) if have >> i & 1]
+                L_ = 'rg_c%d' % have
+                if not combo: a.sjump('rg_e'); return
+                a.sjump(L_); return
+            it = drinks[k][0]
+            a.checkitem(it); a.iftrue('rg_t%d_%d' % (have | 1 << k, k))
+            tree(have, k + 1)
+            a.label('rg_t%d_%d' % (have | 1 << k, k)); tree(have | 1 << k, k + 1)
+        tree(0, 0)
+        names = ('おいしいみず@', 'サイコソーダ@', 'ミックスオレ@')
+        for have in range(1, 8):
+            combo = [i for i in range(3) if have >> i & 1]
+            L_ = 'rg_c%d' % have
+            a.label(L_); a.db(0x4F); a.dw(L_ + 'h'); a.db(0x58); a.db(0x50)   # loadmenu ; verticalmenu ; closewindow
+            for j, i in enumerate(combo): a.ifequal(j + 1, 'rg_d%d' % i)
+            a.sjump('rg_e')
+            a.label(L_ + 'h'); a.db(0x40, 0, 0, 2 * len(combo) + 1, 8); a.dw(L_ + 'd'); a.db(1)
+            a.label(L_ + 'd'); a.db(0x80, len(combo)); a.raw(b''.join(encode(names[i]) for i in combo))
         a.label('rg_e'); a.closetext(); a.end()
         for k, (it, fl, yay, tm) in enumerate(drinks):
             a.label('rg_d%d' % k); a.checkitem(it); a.iffalse('rg_e'); a.checkevent(fl); a.iftrue('rg_nt')
@@ -157,8 +177,6 @@ def main():
             a.writetext('rg_x%d' % k); a.waitbutton(); a.closetext(); a.end()
         a.label('rg_nt'); a.writetext('rg_no'); a.waitbutton(); a.closetext(); a.end()
         a.label('rg_f'); a.writetext('rg_full'); a.waitbutton(); a.closetext(); a.end()
-        a.label('rg_mh'); a.db(0x40, 2, 0, 11, 13); a.dw('rg_md'); a.db(1)
-        a.label('rg_md'); a.db(0x80, 4); a.raw(b''.join(encode(s) for s in ('おいしいみず@', 'サイコソーダ@', 'ミックスオレ@', 'やめる@')))
         return None, 0, 0xFFFF, 0
     # the game designer: the diploma once 150 kinds (No. 1-151) are caught
     dex = P27.W_DEX_CAUGHT
