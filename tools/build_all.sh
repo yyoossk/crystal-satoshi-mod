@@ -32,5 +32,6 @@ python3 build_phase32.py ../build/p31.gbc ../build/p32.gbc ../build/p32.ips   # 
 python3 build_phase33.py ../build/p32.gbc ../build/p33.gbc ../build/p33.ips   # 24・25・9・10ばんどうろ（赤）・ゴールデンボール橋
 python3 build_phase34.py ../build/p33.gbc ../build/p34.gbc ../build/p34.ips   # 5〜8ばんどうろ（赤）・ヤマブキのゲート（のどが渇いた見張り）
 python3 build_phase35.py ../build/p34.gbc ../build/p35.gbc ../build/p35.ips   # 11〜15ばんどうろ（赤）・ゲート・カビゴンとポケモンのふえ・ディグダのあな入口
-cp ../build/p35.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase36.py ../build/p35.gbc ../build/p36.gbc ../build/p36.ips   # 16〜19・21ばんどうろ（赤）・サイクリングロードのゲート・カビゴン・そらをとぶの家
+cp ../build/p36.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
