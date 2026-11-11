@@ -44,7 +44,7 @@ W_BALLS, W_STEPS, W_SCRIPT_VAR = 0xDC3F, 0xDC40, 0xC2DD
 W_WILD_MON, W_WOBBLES = 0xC644, 0xC6F1
 BT_SAFARI = 0x0D
 SFX_DING = 0x27                    # SFX_ELEVATOR_END: the PA
-SPECIAL_MONEY = 0x5E
+SPECIAL_MONEY = 0x51               # PlaceMoneyTopRight (US 0x52)
 # hooks (JP Crystal, unchanged by the earlier phases)
 H_BATTLE = 0x3C05A                 # 0F:405A  ld a, [wBattleType]          (DoBattle, wild)
 H_STEP = 0x96B79                   # 25:6B79  ld a, [$C2DC]                (CountStep)
