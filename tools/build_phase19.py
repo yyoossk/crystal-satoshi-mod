@@ -36,6 +36,7 @@ CONST = {'CINNABAR_MART': 'CinnabarMart', 'CINNABAR_LAB': 'CinnabarLab', 'CINNAB
          'POKEMON_MANSION_3F': 'PokemonMansion3F', 'POKEMON_MANSION_B1F': 'PokemonMansionB1F', 'CINNABAR_GYM': 'CinnabarGym'}
 TOWN_WARP = {'PokemonMansion1F': 2, 'CinnabarLab': 3, 'CinnabarMart': 4, 'CinnabarGym': 5}   # index (1-based) in the town
 EV_HOF = 0x34A
+MEW, W_DEX_CAUGHT = 0x97, 0xDE2D             # Mew; wPokedexCaught (JP)
 SECRET_KEY = 0x93                  # unused item slot -> key item ひみつのカギ
 FACILITY_TS = 34
 # Red: PokemonMansion3F .holeCoords and DungeonWarpData (where the player lands)
@@ -269,6 +270,19 @@ def main():
                     a.label('fr_cb%02X' % it)
                 a.endcallback()
                 callbacks.append((2, 'fr_cb'))
+            elif n == 'PokemonMansionB1F' and o['sprite'] == 'SPRITE_POKEDEX':
+                # the Pikachu full-color hack (151): after the Hall of Fame, reading this diary calls Mew (Lv 50),
+                # again and again until it is caught
+                b_, p_ = pkmap.text_ptr(g, tid); k_, body = pkmap.text_body(b_, p_); assert k_ == 'text'
+                a.label(lab); a.opentext(); a.writetext(lab + 't'); a.waitbutton()
+                a.checkevent(EV_HOF); a.iffalse(lab + 'z')
+                a.callasm(sb, 'mewchk'); a.iftrue(lab + 'z')
+                a.writetext('mew_t'); a.waitbutton(); a.closetext()
+                a.cry(MEW); a.waitsfx(); a.loadwildmon(MEW, 50); a.startbattle(); a.reloadmapafterbattle(); a.end()
+                a.label(lab + 'z'); a.closetext(); a.end()
+                a.label('mewchk'); a.db(0xFA); a.dw(W_DEX_CAUGHT + (MEW - 1) // 8)       # ld a, [wPokedexCaught + 18]
+                a.db(0xE6, 1 << ((MEW - 1) % 8), 0xEA, 0xDD, 0xC2, 0xC9)               # and bit ; ld [wScriptVar], a
+                texts[lab + 't'] = body; texts['mew_t'] = encode('{00}なにかの　けはいが　する！')
             else:
                 b_, p_ = pkmap.text_ptr(g, tid); k_, body = pkmap.text_body(b_, p_)
                 if k_ != 'text':
