@@ -55,7 +55,7 @@ class Kit:
     def __init__(s, rom, sp, bank, FL, log, max26):
         s.rom = rom; s.sp = sp; s.bank = bank; s.FL = FL; s.log = log; s.max26 = max26; s.dims = {}
         s.dbank = bank                      # where place_blocks puts the blocks (may be set to another bank)
-        s.bench_texts = {}
+        s.bench_texts = {}; s.ignore_hidden = set()
         s.TS = PM.Tilesets(rom, sp)
         s.ow = Tileset('Overworld', 0, 'overworld.bst', SC + '/out/pk_overworld.pkl', water=0x14, grass=0x52)
         s.party_of = {}
@@ -149,6 +149,7 @@ class Kit:
                 a.label(L_); a.db(0x0C, 0x31, 0x00); bgs.append((y, x, 1, L_)); continue
             if fn == 'PrintBenchGuyText':                       # the text comes from the caller (bench_texts[(x, y)])
                 a.label(L_); a.jumptext(L_ + 't'); texts[L_ + 't'] = s.bench_texts[(x, y)]; bgs.append((y, x, 0, L_)); continue
+            if fn in s.ignore_hidden: continue                  # (the caller keeps its own)
             assert fn == 'HiddenItems', (nm, fn)
             a.label(L_); a.dw(s.FL.new()); a.db(PM.item_id(arg)); bgs.append((y, x, 7, L_))
         return obj_bytes, bgs
