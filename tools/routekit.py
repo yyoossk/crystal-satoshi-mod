@@ -115,7 +115,7 @@ class Kit:
             a.label(k_); a.raw(v if v[-1] in (0x50, 0x57, 0x58) else P12.text(v))
 
     # ---------------------------------------------------------------- Red's objects / signs / hidden items
-    def red_events(s, a, texts, nm, g, pre, special=None, spr=None):
+    def red_events(s, a, texts, nm, g, pre, special=None, spr=None, bg_special=None):
         """objects of Red's map nm (Red map id g): trainers, items, plain people; special {tid: fn(a, texts, lab, o)
         -> (sprite or None, typ, flag, sight) or None to skip}; returns obj_bytes, bgs"""
         special = special or {}; spr = spr or P25.SPR
@@ -140,6 +140,7 @@ class Kit:
                 a.label(lab); a.jumptextfaceplayer(lab + 't'); texts[lab + 't'] = s.rt(g, tid)
             obj_bytes.append([sp_, o['y'] + 4, o['x'] + 4, mv, rng, 0xFF, 0xFF, typ, sight, lab, fl])
         for k, (x, y, tconst) in enumerate(bgl):
+            if bg_special and k in bg_special: bgs.append((y, x) + tuple(bg_special[k])); continue      # (type, label)
             L_ = '%sbg%d' % (pre, k); a.label(L_); a.jumptext(L_ + 't'); texts[L_ + 't'] = s.rt(g, len(objs) + k + 1)
             bgs.append((y, x, 0, L_))
         for k, (x, y, fn, arg) in enumerate(P25.hidden(PM.map_const(nm))):

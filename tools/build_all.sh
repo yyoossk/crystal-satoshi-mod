@@ -37,5 +37,6 @@ python3 build_phase37.py ../build/p36.gbc ../build/p37.gbc ../build/p37.ips   # 
 python3 build_phase38.py ../build/p37.gbc ../build/p38.gbc ../build/p38.ips   # セキチクシティ（赤）・展示のポケモンと図鑑・マサキのおじいさんの家・いいつりざお
 python3 build_phase39.py ../build/p38.gbc ../build/p39.gbc ../build/p39.ips   # シオンタウン（赤）・フジ老人のポケモンハウス・カラカラの家
 python3 build_phase40.py ../build/p39.gbc ../build/p40.gbc ../build/p40.ips   # タマムシシティ（赤）・食堂（コインケース）・ゲームコーナー社長の家・ホテル
-cp ../build/p40.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase41.py ../build/p40.gbc ../build/p41.gbc ../build/p41.ips   # タマムシデパート・タマムシマンション（赤）・イーブイ・しょうじょう
+cp ../build/p41.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
