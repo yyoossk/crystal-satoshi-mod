@@ -22,5 +22,6 @@ python3 build_phase22.py ../build/p21.gbc ../build/p22.gbc ../build/p22.ips   # 
 python3 build_phase23.py ../build/p22.gbc ../build/p23.gbc ../build/p23.ips   # チャンピオンロード（シルバー戦も）
 python3 build_phase24.py ../build/p23.gbc ../build/p24.gbc ../build/p24.ips   # 23ばんどうろ（見張り7人）・セキエイこうげん
 python3 build_phase25.py ../build/p24.gbc ../build/p25.gbc ../build/p25.ips   # ハナダシティ（赤）・家・自転車屋・ハナダのどうくつ
-cp ../build/p25.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase26.py ../build/p25.gbc ../build/p26.gbc ../build/p26.ips   # ニビシティ（赤）・ニビかがくはくぶつかん
+cp ../build/p26.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"

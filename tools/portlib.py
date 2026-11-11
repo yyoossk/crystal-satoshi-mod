@@ -26,7 +26,7 @@ def lz(data):
 
 def gen1_coll(name):
     src = open(PY + '/data/tilesets/collision_tile_ids.asm').read()
-    m = re.search(name + r'_Coll::\s*\n\s*coll_tiles\s*([^\n]*)', src)
+    m = re.search(name + r'_Coll::(?:\s*\n\s*\w+_Coll::)*\s*\n\s*coll_tiles\s*([^\n]*)', src)
     return set(int(x.strip().lstrip('$'), 16) for x in m.group(1).split(',') if x.strip())
 
 
