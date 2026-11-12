@@ -60,5 +60,6 @@ python3 build_phase60.py ../build/p59.gbc ../build/p60.gbc ../build/p60.ips   # 
 python3 build_phase61.py ../build/p60.gbc ../build/p61.gbc ../build/p61.ips   # 御三家・セレビィキット：セレビィ（鳥なし、$47:$7E40 へ）・ジョウトの御三家3びき（rgbds 1.0.4）
 python3 build_phase62.py ../build/p61.gbc ../build/p62.gbc ../build/p62.ips   # 御三家・セレビィ・交換進化キット：交換進化だけ（ほかは入っている）
 python3 build_phase63.py ../build/p62.gbc ../build/p63.gbc ../build/p63.ips   # セレビィ：つかまえていなければ つぎの殿堂入りで また出る
-cp ../build/p63.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase64.py ../build/p63.gbc ../build/p64.gbc ../build/p64.ips   # クリスタル追加機能キット（全機能・60fps・バグ修正）：4MB に（rgbds 1.0.4）
+cp ../build/p64.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"

@@ -1,0 +1,96 @@
+クリスタル追加機能キット（全機能・60fps・バグ修正）… 別の クリスタル（日本版）の パッチに 入れる ための キット
+================================================================================
+
+「ポケットモンスター クリスタル 追加機能パッチ」Ver.1.5.0 の ソース 一式から、251匹そろう版だけを のぞいた もの。
+入って いる もの：追加機能 ぜんぶ（README.txt の 1〜62。58 の 251匹そろう版 だけ のぞく）、60fps（6。src/fps60.asm）、
+元の ゲームの バグ修正（7。src/bugfix.asm）。
+60fps は 標準で 組みこむ（buildlist.txt に 入って いる。60fps なしの 版は 作らない）。
+元の クリスタル（日本版）に 組むと、Ver.1.5.0 の 60fps版（CRC32 D0C9E654）と 同じ ROM に なる。
+README.txt に ある 251匹そろう版（58、buildlist251.txt、edition251 など）の 話は 読みとばす（ファイルは 入れて いない）。
+
+■ 中身
+  build.py・buildlist.txt（追加機能＋60fps＋バグ修正）・mkips.py
+  src/      追加機能の asm（〜_crystal.asm が クリスタルの 値、名前に _crystal の ない ものが 本体）。src/fps60.asm・src/bugfix.asm も ここ
+  data/・gfxdata/  表・絵
+  tools/    アドレスを さがす 道具・表を 作る 道具・tools/overlap_check.py（ぶつかりを 調べる）
+  pokecrystal/  pret/pokecrystal の constants/・macros/（組み立てに つかう 定数・マクロ）
+
+■ 組みかた（rgbds 1.0.4 の rgbasm・rgblink・rgbfix を PATH に）
+  1. 元の クリスタル（日本版。CRC32 は README.txt）を base.gbc として この フォルダに 置く
+  2. python3 build.py feat.gbc $(cat buildlist.txt)       … 追加機能＋60fps＋バグ修正
+  3. python3 mkips.py base.gbc feat.gbc feat.ips
+  ※ build.py は さいごに 全ポケモンの 基本データの ひでんマシンの ビットを たてる（どの ポケモンも ひでんわざを 使える 機能。README.txt）。
+
+■ 入れる パッチに もう 入って いる ものは 組まない
+  入れる パッチを 動かして、下の 表の 機能が もう 入って いるか（同じ ことが できるか）を たしかめ、入って いない ものだけを 組む。
+  入って いる 機能の asm は buildlist.txt から けす。同じ ことを する 機能が 2つ 入ると こわれる ことが ある。
+  機能 → ファイル（番号は README.txt）：
+    1〜4 Bダッシュ・メニューの パソコン・なまえ・わすれる … src/features.asm（4つ 1つの ファイル。一部だけ はずす ときは その フックの SECTION を けす）
+    5 ひでんマシンを 全ポケモンに … build.py（さいごに ビットを たてる。いらなければ build(…, hm=False)）
+    6 60fps … src/fps60.asm（標準で 組む。けさない。入れる パッチに 別の 60fps・フレーム補間が あれば、それを はずして こちらに するか、
+      重ならない ように 直して 入れる）
+    7 バグ修正 … src/bugfix.asm（同じ バグが もう 直って いれば その 所の SECTION を けす）
+    8 手持ちの 見た目 … minis.asm   9 ひでんわざ … hmfield_crystal.asm   10 ぶんぷに 釣り … fishnest_crystal.asm
+    11・48・51 ジムリーダー再戦（カントー・ジョウト）・バッジ16こ あとの 四天王 … rematch_crystal.asm（rematch.asm・league.asm）
+    12 殿堂入り前の ポケモン … wild_crystal.asm   13 とけい … clockopt.asm   14 わざ上書き しない … learnno.asm
+    15 ボールの 絵 … ballgfx.asm   16 わざの 並べかえ … statsmove.asm   17 赤白の ボールの 印 … redballs_crystal.asm
+    18 ずかん・パソコンの 絵の 色 … picpal_crystal.asm   19 フィールドの 色 … fieldcolors_crystal.asm   20 専用わざ … sigmove_crystal.asm
+    21・53 サファリゾーン … safari/safari.asm   22 ボックス 自動切りかえ … autobox_crystal.asm   23 マスターボールを 売る … masterball_crystal.asm
+    24 むしよけ … repelask_crystal.asm   25 さいこうの はやさ … textspeed_crystal.asm   26 電話の 回数 … phonefreq_crystal.asm
+    27 わざ おもいだし … moverelearn_crystal.asm   28 ぶんぷの 時間帯 … nesttime_crystal.asm   29・54 そだてやの ヒント … daycarehint_crystal.asm
+    30 セレビィ・伝説の 鳥 … legends_crystal.asm   31 カントー御三家 … starters_crystal.asm   32 威力・命中・効き目 … movepower_crystal.asm
+    33 ダウジングの 方向 … itemfinder_crystal.asm   34 電話帳の「！」 … phonemark_crystal.asm   35 ポケギアの 白 … pokegearwhite_crystal.asm
+    36 SELECT で ボール … quickball_crystal.asm   37 なつきど … hearts_crystal.asm   38 時計の 画面の 曜日 … gearday_crystal.asm
+    39 タマゴの のこり歩数 … eggsteps_crystal.asm   40 色ちがいの ★ … partyshiny_crystal.asm   41 めざパ … hpower_crystal.asm
+    42 個体値・きそポイント … dvview_crystal.asm   43 相手の HP … enemyhp_crystal.asm   44 手持ちの 道具 … partyitem_crystal.asm
+    45 かならず かかる … fishbite_crystal.asm   46 命中 … moveacc_crystal.asm   47 伝説の 復活 … legendrevive_crystal.asm
+    49 むしとり大会の パソコン … contestpc_crystal.asm   50・62 連れ歩き … follow_crystal.asm   52 景品の わざ名 … prizetm_crystal.asm
+    55・56 状態異常の 色・PP の 色 … statuscolor_crystal.asm   57 ずかんの タイプ・種族値・進化 … dexinfo_crystal.asm＋dexinfo_trade_crystal.asm
+    59 わざマシンの 店 … tmshop_crystal.asm   60 そだてやの 外 … daycareout_crystal.asm   61 タマゴ 半分 … eggfast_crystal.asm
+  ほかの ファイルを よぶ もの（1つ けして 組めなく なったら、よぶ 側の 所も 直す か いっしょに けす）：
+    tmshop（TmShopMart）← masterball.asm、statuscolor（StatusColor_BattleLayout・StatusColor_PP）← redballs.asm・movepower.asm、
+    follow（Fw_PartyMark）← partyshiny、dexinfo_trade（DI_TradeText）← dexinfo。
+    この 4つ いがいは 1つずつ けしても 組めることを 確かめた。
+
+■ 入れた あとに バグが ないか 調べて 直す
+  移植した 中身と 入れる パッチの 中身が かさなって こわれて いないかを、組んだ ROM で 動かして 調べ、出た ものは 直す。
+  1. overlap_check.py の「両方が かえた 所」が 0 でも、同じ 処理を 別の 場所から かえて いる（フックが 2重・同じ RAM・同じ 表）ことが あるので、
+     README.txt の 機能ごとの 説明に ある フックの 場所が、入れる パッチの ROM でも 元の 命令の まま だったかを 見る。
+  2. 下の「たしかめる こと」を 60fps で 組んだ ROM で 動かす。とくに 入れる パッチが かえた 所の まわり（マップ・メニュー・戦闘・つよさの 画面・
+     ずかん・ポケギア・セーブ）で、画面の くずれ・止まる・ちがう 文・セーブが こわれる が ないか。レポートを 書いて 読みなおす。
+  3. 元の パッチだけの ROM と くらべて、入れる パッチの 機能も 前の とおり 動くか（こちらの 機能が こわして いないか）。
+  4. バグが 出たら、どちらの 機能の どの 書きかえが 原因かを しぼって（ファイルを 1つずつ はずして 組むと 早い）、アドレス・RAM を ずらすか、
+     入れる パッチの 作りに あわせて 直す。直したら 2・3 を もう いちど。
+
+■ 別の パッチに 入れる とき
+  この キットの 機能は、元の クリスタルの 決まった 場所を 書きかえたり、使われて いない 所に コードを 置いたり して いる。
+  別の パッチも 同じ 場所を 使って いると こわれるので、先に ぶつかりを 調べる。
+  1. 元の base.gbc に この キットを 組む（上の 2）。
+  2. python3 tools/overlap_check.py base.gbc <別の パッチを 当てた ROM> feat.gbc
+     「両方が かえた 所」が ぶつかり。「近くで 両方が かえて いる 所」も 中身を 見る。
+  3. ぶつかった 所は、その 機能の _crystal.asm（60fps は fps60.asm と crystal_jp.inc）の アドレス（DEF … EQU、SECTION の 場所）を、
+     別の パッチで 使われて いない 空きに うつすか、別の パッチの 書きかえと あわせた 形に 直す。
+     どの 機能が どこを 使うかは README.txt の「追加したコード・データを置いた場所」。
+     別の パッチが 元の コードを 動かして いる（アドレスが ずれて いる）ときは、tools/ の 〜_find.py や 命令の 並びで さがしなおして DEF を かえる。
+     バグ修正（src/bugfix.asm）も 元の コードを 直接 書きかえるので、別の パッチが 同じ バグを 直して いれば その 所は 外す。
+  4. ぶつからなく なったら、別の パッチを 当てた ROM を base.gbc に して 組む（build.py は base.gbc の 上に 書く）。
+  5. RAM も ぶつからないか 見る（overlap_check.py では わからない）。この キットが 自分で 使う RAM：
+       レポートに 書かれる 使われて いない バイト：$d832（手持ちの 道具）・$d833（連れ歩きの 番号）・$d836（伝説・カントー御三家）・
+         $d838・$d83c（ダウジング）・$cfc5 の ビット1・2（せっていの 2つめ）
+       WRAM バンク2：$d800〜$d8ff（連れ歩きの 作業）・$de00〜$deaa（連れ歩き）・$df00〜$dfa7（60fps）・$dfb0（アイコン）・
+         $dfc0〜$dfcb（ずかん・とけい・むしよけ・ぶんぷの 時間帯・ボール・こたいち）・$dfd0〜$dfff（むしとり大会の パソコン）
+     別の パッチが これらを 使って いれば、その 機能の DEF を ほかの 空きに うつす。
+  6. 主人公の 絵・マップ・スクリプトを かえて いる パッチの ときは、とくに つぎを たしかめる：
+       連れ歩き（人の 絵・マップの 人の 番号）、伝説の 鳥・カントー御三家（マップの スクリプトと イベントを 写して いる。
+       写した 元の マップを 別の パッチが かえて いれば 写しも 作りなおす）、ジムリーダー再戦・四天王の 手持ち、
+       出現表（data/wild_crystal.txt は 元の 表を さがして 書きかえる）、わざマシンの 店・そだてやの おじいさん（マップの スクリプト）、
+       60fps（HandleMap・VBlank の フック。フィールドの 絵を 足す 機能が あれば その 絵も ずれないか）。
+
+■ たしかめる こと
+  README.txt の「確かめ」に ある ことを、別の パッチを 当てた ROM（60fps 入り）で たしかめる。
+  とくに：連れ歩き（外・中・つながり・なみのり・自転車）、60fps（歩く・自転車・なみのり・つながり・メニュー・戦闘・人の 多い 所）、
+  ボックスの 自動切りかえ、レポートを 書いて 読みなおす、伝説の 鳥・セレビィ、タマムシデパート 3F の わざマシン、そだてやの おじいさん、
+  ジムリーダー再戦、サファリゾーン、バグ修正（README.txt の 7 に 書いた ばめん）。
+
+■ そのほか
+  ・クレジットは README.txt の さいご。
