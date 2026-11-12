@@ -63,5 +63,6 @@ python3 build_phase63.py ../build/p62.gbc ../build/p63.gbc ../build/p63.ips   # 
 python3 build_phase64.py ../build/p63.gbc ../build/p64.gbc ../build/p64.ips   # クリスタル追加機能キット（全機能・60fps・バグ修正）：4MB に（rgbds 1.0.4）
 python3 build_phase65.py ../build/p64.gbc ../build/p65.gbc ../build/p65.ips   # サファリゾーンで のこりの 歩数と ボールを いつも 表示（キットの SafariHUD を MOD の サファリに）
 python3 build_phase66.py ../build/p65.gbc ../build/p66.gbc ../build/p66.ips   # ムサシとコジロウの戦闘の絵を2色に（コジロウは青紫・ムサシは赤紫の髪。ピカチュウフルカラーと同じ）
-cp ../build/p66.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase67.py ../build/p66.gbc ../build/p67.gbc ../build/p67.ips   # $80 以降の バンクの スクリプトが サブスクリプトから 正しく もどる（連れ歩きに 話しかけた とき など）
+cp ../build/p67.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"

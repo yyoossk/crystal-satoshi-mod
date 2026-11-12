@@ -1,0 +1,22 @@
+from kt import *
+rom=sys.argv[1]
+b = start(rom, out='g3_'+rom)
+b.bank1(); b.g.poke(0xD833, 2); v=b.peek(0xD836)[0]; b.g.poke(0xD836, v|1); b.g.poke(0xD837, 0x5a)
+b.step('L'); b.wait(30); b.step('R'); b.wait(30)
+b.bank1(); print('before', b.peek(0xD832, 8))
+b.g.shot(b.out+'/0.png')
+# START -> レポート (7th item): from ずかん go down 6
+print('menu', start_menu(b, 6))
+b.g.shot(b.out+'/menu.png')
+b.press('A',80); b.g.shot(b.out+'/save1.png')
+for i in range(6): b.press('A',90)
+b.wait(200); b.g.shot(b.out+'/save2.png')
+b.g.cmd('reset'); b.wait(600)
+for i in range(3): b.press('A',60)
+for i in range(6): b.press('A',90)
+b.wait(200)
+b.bank1(); print('after', b.peek(0xD832, 8), b.where())
+b.step('L'); b.wait(30); b.step('R'); b.wait(40)
+b.g.shot(b.out+'/1.png')
+sheet([b.out+'/0.png',b.out+'/menu.png',b.out+'/save1.png',b.out+'/save2.png',b.out+'/1.png'], b.out+'.png', W=5)
+b.g.close()

@@ -1,0 +1,10 @@
+from kt import *
+b = start('kit60', sav=SC+'/play/p64nb.sav', out='kitbase')
+b.wait(400)
+for i in range(3): b.press('A',60)
+for i in range(8): b.press('A',90)
+b.wait(120)
+b.bank1(); b.g.poke(0xD833,0)
+b.warp('CherrygroveCity', 30, 7); b.wait(120); b.clear_text()
+b.g.shot(b.out+'/k.png'); print(b.where())
+b.g.save_state(SC+'/play/kitbase.st')
