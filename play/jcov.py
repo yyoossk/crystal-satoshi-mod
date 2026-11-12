@@ -47,7 +47,7 @@ for o,a,b in P.STATICS: add(m[o+1],'static')
 t0=fo(*P.TRADES)
 for i in P.JOHTO_TRADES: add(m[t0+16*i+2],'trade')
 N=PM.MON
-for s in ('TOGEPI','SHUCKLE','TYROGUE','SUDOWOODO','LUGIA','HO_OH','SUICUNE','RAIKOU','ENTEI','WOBBUFFET'): add(N[s],'event')
+for s in ('CHIKORITA','CYNDAQUIL','TOTODILE','CELEBI','TOGEPI','SHUCKLE','TYROGUE','SUDOWOODO','LUGIA','HO_OH','SUICUNE','RAIKOU','ENTEI','WOBBUFFET'): add(N[s],'event')
 for s in ('NATU','PHANPY'): add(N[s],'prize')
 for s in ('PICHU','CLEFFA','IGGLYBUFF','SMOOCHUM','MAGBY','ELEKID','TYROGUE'): add(N[s],'oddegg')
 gen1=[INV[s] for s in src if s<=151]
@@ -70,7 +70,7 @@ while changed:
         for t in ev.get(INV[s].replace('_',''),[]):
             t=N.get(NAME.get(t.replace('_',''),t))
             if t and t>151 and t not in have: have.add(t); changed=True
-excl={N[x] for x in ('CHIKORITA','BAYLEEF','MEGANIUM','CYNDAQUIL','QUILAVA','TYPHLOSION','TOTODILE','CROCONAW','FERALIGATR','CELEBI',
+excl={N[x] for x in (
  'CROBAT','BELLOSSOM','POLITOED','SLOWKING','KINGDRA','STEELIX','SCIZOR','BLISSEY','PORYGON2','ESPEON','UMBREON','PICHU','CLEFFA','IGGLYBUFF','SMOOCHUM','ELEKID','MAGBY')}
 miss=[INV[s] for s in range(152,252) if s not in have and s not in excl]
 print('Gen2 missing (target):', miss)
