@@ -40,11 +40,18 @@ class Bot:
     def peek(s, a, n=1): return s.g.peek(a, n)
     def where(s):
         for i in range(40):
-            g, m = s.peek(W_MAP, 2); y, x = s.peek(W_Y, 2)
+            s.bank1(); g, m = s.peek(W_MAP, 2); y, x = s.peek(W_Y, 2)
             if (g, m) in s.db.maps: break
             s.wait(10)
         return (g, m), x, y
-    def in_battle(s): return s.peek(W_BATTLE)[0] != 0
+    def bank1(s):
+        """$D000-$DFFF shows WRAM bank 1 (the game's variables): wait for it"""
+        for t in range(60):
+            if s.peek(0xFF70)[0] & 7 in (0, 1): return True
+            s.wait(2)
+        return False
+    def in_battle(s):
+        s.bank1(); return s.peek(W_BATTLE)[0] != 0
     def pc(s): return s.g.pc()
 
     # ---------------- scripts
@@ -113,14 +120,27 @@ class Bot:
         return fs
 
     def battle(s, maxp=300):
-        """fight with the first move until the battle ends"""
-        k = 0
+        """fight with the current move; when it has no effect, the next move"""
+        k = 0; noeff = False
         while s.in_battle() and k < maxp:
+            if s.has('こうかが') or s.has('のこりポイント'): noeff = True
+            if s.has('だしますか'):                        # a Pokémon fainted: the next one in the party
+                s.press('D', 20); s.press('A', 30); s.press('A', 30); k += 1; continue
+            if noeff and s.has('わざタイプ') and not s.has('のこりポイント'):
+                s.press('D', 20); noeff = False
             s.press('A', 30); k += 1
             if k % 4 == 0: s.shot('b')
             if k % 7 == 0: s.press('B', 20)
         s.wait(60)
-        s.g.pokes(0xDCA5 + 0x17, [0xFF, 0xFF, 0xFF, 0xFF])
+        for t in range(30):                         # WRAM bank 1 must be mapped (battle code switches $D000-$DFFF)
+            if s.peek(0xFF70)[0] & 7 in (0, 1): break
+            s.wait(4)
+        else:
+            return k
+        n = s.peek(0xDC9D)[0]
+        for i in range(min(6, n) if n <= 6 else 0):
+            o = 0xDCA5 + 0x30 * i
+            s.g.pokes(o + 0x17, [0x3F, 0x3F, 0x3F, 0x3F]); hp = s.peek(o + 0x24, 2); s.g.pokes(o + 0x22, hp); s.g.poke(o + 0x20, 0)
         return k
 
 
