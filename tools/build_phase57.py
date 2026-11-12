@@ -15,6 +15,10 @@ kit151/ピカチュウ_151匹そろう版_クリスタルのカントー).
  * Fighting Dojo: both Hitmonlee and Hitmonchan can be taken.
  * Celadon Mansion roof room: three Eevees (the ball stays until the third is taken).
  * Kadabra, Machoke, Graveler and Haunter evolve at Lv 37 instead of by trade (Crystal's other trade evolutions stay).
+ * No Gen II Pokémon in Kanto: Crystal's Mt. Moon (after the Hall of Fame) has the kit's Mt. Moon 1F; Routes 14 and 16
+   (water without the kit's fishing): Old / Good Rod only; Crystal's Vermilion port fishes as the Vermilion dock.
+ * Pikachu where Red / Green / Blue have it: Viridian Forest (4% Lv 3, 1% Lv 5) and the Power Plant (10% Lv 20,
+   morning and day); every kind of the kit's stays in those maps.
  * Mew (Lv 50, after the Hall of Fame, after reading the Mansion B1F diary, until caught): phase 19 already.
  * Fixes found on the way: the MOD's gift balls (Lapras, the Magikarp seller, Eevee, the Dojo) read givepoke's result
    the wrong way (0 = given), so the ball stayed and could be taken again and again; Viridian Forest had a Johto
@@ -57,7 +61,12 @@ KIT_MAP = {'ROUTE_1': (13, 1), 'ROUTE_2': (23, 1), 'ROUTE_3': (14, 1), 'ROUTE_4'
            'SAFARI_ZONE_CENTER': (G26, 88), 'SAFARI_ZONE_EAST': (G26, 90), 'SAFARI_ZONE_NORTH': (G26, 92),
            'SAFARI_ZONE_WEST': (G26, 94),
            'ROCK_TUNNEL_1F': (G26, 147), 'ROCK_TUNNEL_B1F': (G26, 148), 'DIGLETTS_CAVE': (G26, 149)}
-KEEP = [(3, 85), (3, 83), (24, 1), (24, 2), (19, 1)]      # Crystal's: Mt. Moon (after the HoF), Tohjo Falls, Routes 26-28
+KEEP = [(3, 83), (24, 1), (24, 2), (19, 1)]      # Crystal's: Tohjo Falls, Routes 26-28 (the Johto side)
+CRYSTAL_MT_MOON = (3, 85)          # Crystal's Mt. Moon (after the Hall of Fame): the kit's Mt. Moon 1F
+# Kanto water the kit has no fishing for: Old / Good Rod as everywhere, the Super Rod catches nothing (as in the
+# Pikachu version); Crystal's Vermilion port: as the Vermilion dock next to it
+EXTRA_FISH = {(17, 2): 0xFF, (21, 2): 0xFF, (15, 2): 'VERMILION_DOCK'}
+PIKACHU = 25
 MANSION = [(G26, 57), (G26, 58), (G26, 59), (G26, 60)]
 ENV_DUNGEON = 7
 KANTO_LANDMARK = 0x2F             # Pallet Town: the first Kanto landmark (IsInJohto)
@@ -88,6 +97,22 @@ def strip(l): return l.split(';')[0].strip()
 
 
 def kit_grass():
+    """the kit's grass, with Pikachu where Red / Green / Blue have it (Viridian Forest 4% Lv 3 + 1% Lv 5, as Red's
+    5%; the Power Plant 10% Lv 20 in the morning and the day), keeping every kind of the kit's in the map"""
+    out = kit_grass_raw()
+    for name, rates, mons in out:
+        if name == 'VIRIDIAN_FOREST':
+            pg, pgt = mons[4], mons[5]; assert pg[1] == 16 and pgt[1] == 17
+            for t in range(3):
+                mons[t * 7 + 5] = (3, PIKACHU); mons[t * 7 + 6] = (5, PIKACHU)
+                mons[t * 7 + 4] = pgt if t == 2 else pg               # Pidgeotto (was 4%) at night in Pidgey's slot
+        if name == 'POWER_PLANT':
+            for t in range(2):
+                assert mons[t * 7 + 3][1] == 88; mons[t * 7 + 3] = (20, PIKACHU)   # Grimer stays at night (and on 1F-)
+    return out
+
+
+def kit_grass_raw():
     out = []; cur = None
     for l in open(KIT + 'kanto_grass_151.asm', encoding='utf-8'):
         t = strip(l)
@@ -165,10 +190,12 @@ def main():
         tab += bytes([*mp, *rates]) + b''.join(bytes([lv, s]) for lv, s in mons)
     for mp in KEEP:
         tab += old[mp]
+    tab += tab[[i for i in range(0, len(tab), 47) if tuple(tab[i:i + 2]) == KIT_MAP['MT_MOON_1F']][0]:][:47]
+    tab[-47:-45] = bytes(CRYSTAL_MT_MOON)
     tab += b'\xff'
     assert len(tab) <= fo(0x0A, BACKPIC_END) - g0, len(tab)
     rom[g0:fo(0x0A, BACKPIC_END)] = bytes(tab) + bytes(fo(0x0A, BACKPIC_END) - g0 - len(tab))
-    log.append('Kanto grass: %d maps (kit %d + Crystal %d), %d bytes' % (len(seen) + len(KEEP), len(seen), len(KEEP), len(tab)))
+    log.append('Kanto grass: %d maps (kit %d + Crystal %d), %d bytes' % (len(seen) + len(KEEP) + 1, len(seen), len(KEEP), len(tab)))
     for mp in MANSION:
         rom[hdr(*mp) + 2] = ENV_DUNGEON
     # Viridian Forest had Crystal's Ilex Forest landmark (phase 27's header): a Johto landmark, so the wild Pokémon
@@ -212,6 +239,7 @@ def main():
     a.label('found')                                                                             # b = Super Rod group
     a.db(0xCD); a.dw(RANDOM); a.db(0xFE, 0x80); a.jr(0x30, 'none')                                 # bite: 50%
     a.db(0x7B, 0xA7); a.jr(0x28, 'old'); a.db(0x3D); a.jr(0x28, 'good')
+    a.db(0x78, 0xFE, 0xFF); a.jr(0x28, 'none')                                                   # no Super Rod data
     a.db(0xCD); a.dw(RANDOM); a.db(0x07, 0x07, 0xE6, 0x03, 0x87, 0x4F)                            # c = (r >> 6) * 2
     a.db(0x78, 0x87, 0x87, 0x87, 0x81, 0x5F, 0x16, 0x00, 0x21); a.dw('sup'); a.db(0x19)              # hl = sup + b * 8 + c
     a.db(0x56, 0x23, 0x5E, 0xC9)                                                                  # d = species, e = level
@@ -224,6 +252,8 @@ def main():
         mp = KIT_MAP[name]; a.db(*mp, k)
         h = hdr(*mp)
         if rom[h + 8] == 0: rom[h + 8] = 1; nfix += 1                                            # the rods work there
+    for mp, k in EXTRA_FISH.items():
+        a.db(*mp, fmaps[k] if isinstance(k, str) else k); assert rom[hdr(*mp) + 8]
     a.db(0xFF)
     a.label('sup')
     for k in range(len(sup)):

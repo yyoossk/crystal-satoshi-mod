@@ -1,8 +1,8 @@
 """fishing statistics per map (calls the fishing routine as 03:51F3 does), and wild samples"""
 from t57 import *
 import sys
-make_test_rom(SC + '/build/p57.gbc')
-r = open(SC + '/build/p57.gbc', 'rb').read()
+make_test_rom(SC + '/build/p59.gbc')
+r = open(SC + '/build/p59.gbc', 'rb').read()
 fc = r[0xD1F3:0xD1F9]; assert fc[0] == 0x3E and fc[5] == 0xCF
 def fishstats(b, k, rod, n=60):
     if b.where()[0] != (13, 2):

@@ -9,7 +9,7 @@ JN={}
 for l in open(glob.glob(P.KIT+'入手のしかた_151.md')[0],encoding='utf-8'):
     m=re.match(r'\| (\d+) \| (\S+) \|',l)
     if m: JN[m.group(2)]=int(m.group(1))
-m=open('build/p57.gbc','rb').read()
+m=open('build/p58.gbc','rb').read()
 G={}; o=0x2B140
 while m[o]!=0xff: G[(m[o],m[o+1])]=m[o:o+47]; o+=47
 W={}; o=0x2BD05

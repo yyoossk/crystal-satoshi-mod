@@ -55,5 +55,6 @@ python3 build_phase55.py ../build/p54.gbc ../build/p55.gbc ../build/p55.ips   # 
 python3 build_phase56.py ../build/p55.gbc ../build/p56.gbc ../build/p56.ips   # ムサシとコジロウのマップの絵と色をピカチュウ・フルカラーから
 python3 build_phase57.py ../build/p56.gbc ../build/p57.gbc ../build/p57.ips   # 151匹そろう版（カントーの野生・つり・カセキ2つ・どうじょう2匹・イーブイ3匹・Lv37進化）・もらうポケモンの不具合・トキワのもりの野生
 python3 build_phase58.py ../build/p57.gbc ../build/p58.gbc ../build/p58.ips   # フシギダネ・ヒトカゲ・ゼニガメをピカチュウ版どおりにもらえる（ハナダのメラニー・24ばんどうろ・クチバのジュンサーさん）
-cp ../build/p58.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase59.py ../build/p58.gbc ../build/p59.gbc ../build/p59.ips   # タマムシのけいひんをピカチュウ版どおりに（ケーシィ・ロコン・プクリン・ストライク・カイロス・ポリゴン）
+cp ../build/p59.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
