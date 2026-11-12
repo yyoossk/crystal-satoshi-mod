@@ -61,5 +61,6 @@ python3 build_phase61.py ../build/p60.gbc ../build/p61.gbc ../build/p61.ips   # 
 python3 build_phase62.py ../build/p61.gbc ../build/p62.gbc ../build/p62.ips   # 御三家・セレビィ・交換進化キット：交換進化だけ（ほかは入っている）
 python3 build_phase63.py ../build/p62.gbc ../build/p63.gbc ../build/p63.ips   # セレビィ：つかまえていなければ つぎの殿堂入りで また出る
 python3 build_phase64.py ../build/p63.gbc ../build/p64.gbc ../build/p64.ips   # クリスタル追加機能キット（全機能・60fps・バグ修正）：4MB に（rgbds 1.0.4）
-cp ../build/p64.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase65.py ../build/p64.gbc ../build/p65.gbc ../build/p65.ips   # サファリゾーンで のこりの 歩数と ボールを いつも 表示（キットの SafariHUD を MOD の サファリに）
+cp ../build/p65.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
