@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Phase 61: the kit 「御三家・セレビィキット」 (kitgs/御三家・セレビィキット, from the Crystal feature patch Ver.1.5.0):
  * Celebi (src/celebi_crystal.asm, without the legendary birds: this MOD has Red's): after the Hall of Fame (Johto's,
-   EVENT_BEAT_ELITE_FOUR) the Ilex Forest shrine: Celebi Lv 30, once.
+   EVENT_BEAT_ELITE_FOUR) the Ilex Forest shrine: Celebi Lv 70 (the kit: 30), once.
  * Johto's starters (src/johto3_crystal.asm): choosing one at Prof. Elm's lab gives the other two too; on a save that
    already has one, Prof. Elm gives the other two.
  Kanto's starters (the kit's src/starters_crystal.asm) are not built: phase 58 already gives them in this MOD's
@@ -17,6 +17,7 @@ from lib import *
 
 KIT = os.path.join(SC, 'kitgs', '御三家・セレビィキット')
 LG_BANK, LG_ADDR = 0x47, 0x7E40
+CELEBI_LV = 70
 
 
 def main():
@@ -39,6 +40,9 @@ def main():
                        cwd=KIT, env=env, capture_output=True, text=True)
     print(r.stdout.strip()); assert r.returncode == 0, r.stderr
     out = bytearray(open(os.path.join(KIT, 'feat.gbc'), 'rb').read())
+    # Celebi Lv 70 (the kit: 30): loadwildmon CELEBI, 30
+    k = bytes([0x5C, 251, 30]); i = out.find(k, fo(LG_BANK, LG_ADDR), fo(LG_BANK, LG_ADDR) + 0xC0)
+    assert i > 0 and out.find(k, i + 1, fo(LG_BANK, LG_ADDR) + 0xC0) < 0; out[i + 2] = CELEBI_LV
     fix_checksum(out)
     open(outrom, 'wb').write(out)
     open(outips, 'wb').write(ips(orig, bytes(out)))
