@@ -28,7 +28,7 @@ EV_HOF, EV_KANTO_MODE = 0x34A, 0x349
 ENGINE_RISINGBADGE = 0x22
 ROOMS = ['WillsRoom', 'KogasRoom', 'BrunosRoom', 'KarensRoom', 'LancesRoom']
 OAK_SITES = {0x79E8: 'o1', 0x79ED: 'o2', 0x79F7: 'o3'}      # bank 1E: writetext in Mr. Pokémon's house (Oak)
-JJ, SPR_JAMES, SPR_JESSIE = 72, 0x35, 0x36
+JJ, SPR_JAMES, SPR_JESSIE = 72, 0x76, 0x75                 # phase 56's sprites (Pikachu full-color)
 EKANS, ARBOK, MEOWTH, KOFFING, WEEZING, WOBBUFFET = 0x17, 0x18, 0x34, 0x6D, 0x6E, 0xCA
 # map, Rockets' flag (set when they are gone), Jessie (x, y, facing), James, party
 JJ_SCENES = [('SlowpokeWellB1F', 0x6FC, (15, 12, 'RIGHT'), (14, 12, 'RIGHT'), [(14, EKANS), (14, KOFFING), (15, MEOWTH)]),
@@ -121,7 +121,7 @@ def main():
     for i, (n, rf, jes, jam, party) in enumerate(JJ_SCENES):
         me = MapEvents(rom, n)
         lab = ('far', PB, L['jj%d' % i])
-        ij = me.add_object(SPR_JESSIE, jes[0], jes[1], FACE[jes[2]], lab, flag=jl[i], pal_type=0x80) + 1
+        ij = me.add_object(SPR_JESSIE, jes[0], jes[1], FACE[jes[2]], lab, flag=jl[i]) + 1
         im = me.add_object(SPR_JAMES, jam[0], jam[1], FACE[jam[2]], lab, flag=jl[i]) + 1
         p = fo(PB, L['jj%d' % i]); q = bytes(rom[p:p + 64]).index(bytes([0x6D, 0xFE, 0x6D, 0xFD]))
         rom[p + q + 1] = ij; rom[p + q + 3] = im

@@ -1,0 +1,13 @@
+import functools; print = functools.partial(print, flush=True)
+from mlib import *
+b=Bot(state=SC+'/play/j18b.st', out=SC+'/play/run/hide')
+b.script([0x32, 1749&255, 1749>>8, 0x33, 96, 0, 0x33, 1873&255, 1873>>8, 0x33, 1748&255, 1748>>8, 0x12, 3, 48, 1], 30)
+b.warp((2,7),11,8); b.wait(60); b.ev(shots=False)
+b.step('U'); b.wait(60)
+for i in range(8): b.wait(40); b.ev()
+print('mart', b.where(), b.objpos())
+b.g.save_state(SC+'/play/hide0.st')
+b.refresh_grid(); r=b.go_warp_xy(7,3); print('stairs', r, b.where(), b.log[-2:])
+for i in range(8): b.wait(40); b.ev()
+print('B1F', b.where(), b.objpos())
+b.g.save_state(SC+'/play/hide1.st')

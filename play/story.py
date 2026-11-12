@@ -4,7 +4,7 @@ from mlib import *
 import sys, json
 def run(b, steps):
     for st in steps:
-        op=st[0]
+        op=st[0]; b.refresh_grid()
         if op=='t':
             tgt=tuple(st[1]); r=False
             for k in range(3):

@@ -13,7 +13,7 @@ W_BATTLE = 0xD25E
 TEST = SC + '/build/test_play.gbc'
 
 
-def make_test_rom(src=SC + '/build/p55.gbc'):
+def make_test_rom(src=SC + '/build/p56.gbc'):
     r = bytearray(open(src, 'rb').read())
     o = 0x25 * 0x4000 + 0x6B4E - 0x4000
     assert r[o:o + 5] == bytes([0x3E, 0x25, 0x21, 0x5F, 0x6B])
@@ -176,23 +176,18 @@ def _path(s, tx, ty, extra_block=(), allow_target=True, ignore_objs=False):
     H, W = len(G), len(G[0])
     block = (set() if ignore_objs else set(s.objpos())) | set(extra_block)
     prev = {(x, y): None}; q = deque([(x, y)])
-    D = {(1, 0): 'R', (-1, 0): 'L', (0, 1): 'D', (0, -1): 'U'}
     while q:
         p = q.popleft()
         if p == (tx, ty): break
-        for (dx, dy), d in D.items():
-            nx, ny = p[0] + dx, p[1] + dy
-            if not (0 <= nx < W and 0 <= ny < H) or (nx, ny) in prev: continue
-            c = G[ny][nx]
-            ok = c in WALK or ((nx, ny) == (tx, ty) and allow_target)
-            if c == 0xA3 and dy == 1 and ny + 1 < H and G[ny + 1][nx] in WALK: nx, ny, ok = nx, ny + 1, True
-            elif c == 0xA0 and dx == 1 and nx + 1 < W and G[ny][nx + 1] in WALK: nx, ok = nx + 1, True
-            elif c == 0xA1 and dx == -1 and G[ny][nx - 1] in WALK: nx, ok = nx - 1, True
-            if (nx, ny) in prev: continue
+        mv = _moves(G, *p)
+        if allow_target:
+            for (dx, dy), d in (((1, 0), 'R'), ((-1, 0), 'L'), ((0, 1), 'D'), ((0, -1), 'U')):
+                if (p[0] + dx, p[1] + dy) == (tx, ty) and all(t != (tx, ty) for _, t in mv): mv.append((d, (tx, ty)))
+        for d, t in mv:
+            if t in prev: continue
             if (k, p, d) in s.blocked: continue
-            if (abs(nx - p[0]) + abs(ny - p[1]) == 1) and wall_block(G, p[0], p[1], nx, ny, d): continue
-            if ok and ((nx, ny) not in block or (nx, ny) == (tx, ty)):
-                prev[(nx, ny)] = (p, d); q.append((nx, ny))
+            if t in block and t != (tx, ty): continue
+            prev[t] = (p, d); q.append(t)
     if (tx, ty) not in prev: return None
     out = []; p = (tx, ty)
     while prev[p]: p, d = prev[p]; out.append(d)
@@ -207,6 +202,8 @@ def _goto(s, tx, ty, tries=40, stop_battle=True):
         av = {(w[0], w[1]) for w in s.db.warps(k)} - {(tx, ty), (x, y)}
         p = s.path(tx, ty, extra_block=av)
         if p is None: p = s.path(tx, ty)
+        if p is None and s.blocked:
+            s.blocked = set(); p = s.path(tx, ty)
         if p is None:
             p2 = s.path(tx, ty, ignore_objs=True)
             if p2 is None or s.talked > 6:
@@ -222,6 +219,22 @@ def _goto(s, tx, ty, tries=40, stop_battle=True):
             continue
         for d in p:
             k0 = s.where()
+            D_ = {'R': (1, 0), 'L': (-1, 0), 'D': (0, 1), 'U': (0, -1)}[d]
+            G_ = grid_of(s.db.r, s.db.maps[k0[0]]['hdr']); cx, cy = k0[1] + D_[0], k0[2] + D_[1]
+            if CAN_CUT[0] and 0 <= cy < len(G_) and 0 <= cx < len(G_[0]) and G_[cy][cx] == 0x12:
+                s.face(d); s.press('A', 60)
+                for i_ in range(6):
+                    if s.has('はい'): break
+                    s.press('A', 40)
+                s.press('A', 60); s.clear_text(shots=False); s.wait(60)
+                if hasattr(s, 'refresh_grid'): s.refresh_grid()
+            if CAN_SURF[0] and 0 <= cy < len(G_) and 0 <= cx < len(G_[0]) and G_[cy][cx] in WATER and G_[k0[2]][k0[1]] not in WATER:
+                s.face(d); s.press('A', 60)
+                for i_ in range(6):
+                    if s.has('はい'): break
+                    s.press('A', 40)
+                s.press('A', 60); s.clear_text(shots=False); s.wait(60)
+                if s.where() != k0: continue
             if not s.step(d) and not s.step(d) and s.where() == k0 and not s.textbox() and not s.in_battle():
                 s.blocked.add((k0[0], k0[1:], d))
             if s.in_battle(): s.battle()
@@ -335,7 +348,7 @@ def _cross(s, d, hint=None):
     elif d == 'D': cand = [(i, H - 1) for i in range(W)]
     elif d == 'L': cand = [(0, i) for i in range(H)]
     else: cand = [(W - 1, i) for i in range(H)]
-    cand = [c for c in cand if G[c[1]][c[0]] in WALK and s.path(*c, allow_target=False) is not None]
+    cand = [c for c in cand if _ok_cell(G, c[0], c[1]) and s.path(*c, allow_target=False) is not None]
     ref = hint if hint is not None else (x if d in 'UD' else y)
     cand.sort(key=lambda c: abs((c[0] if d in 'UD' else c[1]) - ref))
     for c in cand[:6]:
@@ -351,11 +364,15 @@ Bot.cross = _cross
 
 def _talk_to(s, ox, oy, n=200):
     """walk next to the object at (ox,oy), face it, talk through the event"""
-    for (dx, dy, d) in ((0, 1, 'U'), (0, -1, 'D'), (1, 0, 'L'), (-1, 0, 'R')):
-        if s.path(ox + dx, oy + dy, allow_target=False) is not None:
-            s.goto(ox + dx, oy + dy)
-            if s.where()[1:] == (ox + dx, oy + dy):
-                s.face(d); s.press('A', 40); s.shot('talk'); return s.ev(n)
+    for ign in (False, True):
+        for (dx, dy, d) in ((0, 1, 'U'), (0, -1, 'D'), (1, 0, 'L'), (-1, 0, 'R')):
+            if s.path(ox + dx, oy + dy, allow_target=False, ignore_objs=ign, extra_block=[(ox, oy)]) is not None:
+                for t in range(3):
+                    s.goto(ox + dx, oy + dy)
+                    if s.where()[1:] == (ox + dx, oy + dy): break
+                    s.ev(shots=False)
+                if s.where()[1:] == (ox + dx, oy + dy):
+                    s.face(d); s.press('A', 40); s.shot('talk'); return s.ev(n)
     s.log.append('talk_to failed %s' % ((ox, oy),)); return -1
 Bot.talk_to = _talk_to
 
@@ -369,20 +386,29 @@ BADGES = 0xD857
 
 # ---------------- multi-map travel planner
 from mapdb import connections as _conns
+HOPD = {0xA0: (1, 0), 0xA1: (-1, 0), 0xA2: (0, -1), 0xA3: (0, 1)}
+CAN_CUT = [False]; CAN_SURF = [False]; WATER = {0x29}
+def _ok_cell(G, x, y):
+    return 0 <= y < len(G) and 0 <= x < len(G[0]) and (G[y][x] in WALK or G[y][x] in HOPD or (CAN_CUT[0] and G[y][x] == 0x12)
+                                                       or (CAN_SURF[0] and G[y][x] in WATER))
+def _moves(G, x, y):
+    """[(dir, dest)] from (x, y): hop tiles are walked on and jumped from (Crystal: the jump starts on the ledge tile)"""
+    out = []; c = G[y][x]
+    for (dx, dy), d in (((1, 0), 'R'), ((-1, 0), 'L'), ((0, 1), 'D'), ((0, -1), 'U')):
+        if HOPD.get(c) == (dx, dy):
+            if _ok_cell(G, x + 2 * dx, y + 2 * dy): out.append((d, (x + 2 * dx, y + 2 * dy)))
+            continue
+        nx, ny = x + dx, y + dy
+        if not _ok_cell(G, nx, ny): continue
+        if wall_block(G, x, y, nx, ny, d): continue
+        out.append((d, (nx, ny)))
+    return out
 def _reach_set(G, starts):
-    H, W = len(G), len(G[0]); seen = set(starts); q = deque(starts)
+    seen = set(starts); q = deque(starts)
     while q:
         x, y = q.popleft()
-        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            nx, ny = x + dx, y + dy
-            if not (0 <= nx < W and 0 <= ny < H): continue
-            if wall_block(G, x, y, nx, ny, {(1, 0): 'R', (-1, 0): 'L', (0, 1): 'D', (0, -1): 'U'}[(dx, dy)]): continue
-            c = G[ny][nx]; t = None
-            if c in WALK: t = (nx, ny)
-            elif c == 0xA3 and dy == 1 and ny + 1 < H and G[ny + 1][nx] in WALK: t = (nx, ny + 1)
-            elif c == 0xA0 and dx == 1 and nx + 1 < W and G[ny][nx + 1] in WALK: t = (nx + 1, ny)
-            elif c == 0xA1 and dx == -1 and nx - 1 >= 0 and G[ny][nx - 1] in WALK: t = (nx - 1, ny)
-            if t and t not in seen: seen.add(t); q.append(t)
+        for d, t in _moves(G, x, y):
+            if t not in seen: seen.add(t); q.append(t)
     return seen
 
 def _edge_cells(G, d):
@@ -391,7 +417,7 @@ def _edge_cells(G, d):
     elif d == 'S': c = [(i, H - 1) for i in range(W)]
     elif d == 'W': c = [(0, i) for i in range(H)]
     else: c = [(W - 1, i) for i in range(H)]
-    return [p for p in c if G[p[1]][p[0]] in WALK]
+    return [p for p in c if _ok_cell(G, p[0], p[1])]
 
 OPP = {'N': 'S', 'S': 'N', 'W': 'E', 'E': 'W'}
 def _hops(s, k, starts):
