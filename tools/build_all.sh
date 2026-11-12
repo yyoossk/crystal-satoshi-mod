@@ -53,5 +53,6 @@ python3 build_phase53.py ../build/p52.gbc ../build/p53.gbc ../build/p53.ips   # 
 python3 build_phase54.py ../build/p53.gbc ../build/p54.gbc ../build/p54.ips   # カントーの殿堂入りとスタッフロールを赤どおりに・戦闘後のセリフの不具合・前のセーブのライバル名
 python3 build_phase55.py ../build/p54.gbc ../build/p55.gbc ../build/p55.ips   # カントーのジムを赤どおりに（ジムリーダーのセリフ・わざマシン・セキチクはキョウ・ジムの案内人）・はしごで壁に埋まる不具合
 python3 build_phase56.py ../build/p55.gbc ../build/p56.gbc ../build/p56.ips   # ムサシとコジロウのマップの絵と色をピカチュウ・フルカラーから
-cp ../build/p56.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase57.py ../build/p56.gbc ../build/p57.gbc ../build/p57.ips   # 151匹そろう版（カントーの野生・つり・カセキ2つ・どうじょう2匹・イーブイ3匹・Lv37進化）・もらうポケモンの不具合・トキワのもりの野生
+cp ../build/p57.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
