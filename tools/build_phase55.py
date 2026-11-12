@@ -10,6 +10,10 @@
  * Gym guides (Pewter, Cerulean, Vermilion, Fuchsia, Saffron, Viridian): Red's lines (Crystal's spoke of Johto, or of
    Misty being away); Viridian's guide stands in the gym as in Red.
  * Viridian Gym: Giovanni's TM27 is described as Crystal's TM27 (おんがえし).
+ * After the Kanto Hall of Fame: Lavender Town's doors led nowhere (the warp table used after the Hall of Fame was
+   read from a bank the town's events had left) and the Vermilion port passage's exits led to wrong places in Red's
+   Vermilion City: the after-Hall-of-Fame warp tables are rebuilt from the current warps (Lavender's tower door ->
+   Crystal's Radio Tower, the passage's dock door -> Crystal's port).
  * Ported maps (Red's ladders and stairs: Mt. Moon, Rock Tunnel, Seafoam Islands, Victory Road, Cerulean Cave,
    Silph Co., Pokémon Tower, ...): arriving on a ladder whose tile below is a wall no longer pushes the player one
    step down into the wall (stuck there); as in Red the player stands on the ladder (Crystal's ladder collision).
@@ -318,6 +322,23 @@ def main():
                 if below in WALKABLE: continue
                 rom[o] = 0x72; fixed.add((g + 1, m + 1, x, y))
     log.append('ladders: %d warps of ported maps no longer step down into a wall' % len(fixed))
+
+    # ---------------------------------------------------------------- after-HoF warp tables (phase 12 / 16 switches)
+    def cur_warps(name):
+        a_ = attrs(rom, hdr_index(name)); ev = parse_events(rom, a_['scbank'], a_['events'])
+        return a_['scbank'], [bytearray(w) for _, w in ev['warps']]
+    for name, old_ptr, fn_ld, override in (
+            ('LavenderTown', 0x72DA, 0x5EA4, {1: ('LavRadioTower1F', 1)}),
+            ('VermilionPortPassage', 0x7F79, 0x6326, {4: ('VermilionPort', 1)})):
+        sb_, ws = cur_warps(name)
+        o = fo(0x78, fn_ld); assert rom[o] == 0x21 and r16(o + 1) == old_ptr, name
+        for i, (mn, idx) in override.items():
+            ws[i][2] = idx; ws[i][3], ws[i][4] = mapid(mn)
+        f, n = bank_free_tail(rom, sb_)
+        if sb_ not in sp.cur: sp.set_area(sb_, f + 1, sb_ * 0x4000 + 0x4000)
+        na = sp.put(sb_, b''.join(bytes(w) for w in ws))
+        rom[o + 1] = na & 0xFF; rom[o + 2] = na >> 8
+        log.append('%s: warps after the Hall of Fame rebuilt (%X:%04X)' % (name, sb_, na))
 
     log.append('extended flags used up to %d' % FL.i)
     fix_checksum(rom)

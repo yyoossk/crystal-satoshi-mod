@@ -450,12 +450,19 @@ Bot.travel = _travel
 
 def _go_warp_xy(s, wx, wy, dirs='DULR'):
     k = s.where()[0]
+    G = grid_of(s.db.r, s.db.maps[k]['hdr'])
+    c = G[wy][wx] if 0 <= wy < len(G) and 0 <= wx < len(G[0]) else 0
+    cd = {0x70: 'D', 0x76: 'L', 0x78: 'U', 0x7E: 'R'}.get(c)
+    if cd: dirs = cd + dirs.replace(cd, '')
     for t in range(3):
         if s.goto(wx, wy) or s.where()[0] != k: break
     s.wait(50)
     if s.where()[0] != k: s.wait(60); return True
     for d in dirs:
-        s.step(d); s.wait(40)
+        if s.where()[1:] == (wx, wy):
+            s.g.down(d); s.wait(24); s.g.up(d); s.wait(60)
+        else:
+            s.step(d); s.wait(40)
         if s.where()[0] != k: s.wait(60); return True
     s.log.append('go_warp_xy failed %s %s' % (k, (wx, wy))); return False
 Bot.go_warp_xy = _go_warp_xy
