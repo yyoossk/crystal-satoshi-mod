@@ -438,6 +438,7 @@ def _travel(s, target, maxhops=40, avoid=()):
     for i in range(maxhops):
         k = s.where()[0]
         if k == target: return True
+        s.blocked = set()
         p = s.plan(target, avoid)
         if not p: s.log.append('travel: no plan %s -> %s' % (k, target)); return False
         k0, kind, arg, d = p[0]

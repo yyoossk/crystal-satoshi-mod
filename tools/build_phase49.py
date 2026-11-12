@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Phase 49: Johto's lines for a player who comes from Kanto (the Kanto champion, his mother in Pallet Town):
  * Prof. Elm: the Pokémon he gives is the player's partner in Johto (not his first); "tell your mother in Pallet";
+   back from Mr. Pokémon: Oak made the player's Pokédex work in Johto too (not "Oak gave you a Pokédex? You may have
+   what it takes to become the champion" -- he is Kanto's champion);
    the ship ticket after the Elite Four: "now you can go home to Kanto any time" (the player already holds a ticket:
    it is taken first, so Elm's gift works).
  * Elm's aide (Poké Balls): the player knows how to catch Pokémon.
@@ -28,6 +30,11 @@ def T(s): return encode('{00}' + s) + b'\x57'
 TEXTS = {
     (0x1B, 0x67B0): 'そだてて　ほしい　<POKEMON>が<LINE>この　ボールに　はいっているよ！<PARA>{14}の　ジョウトでの<LINE>'
                     'パートナーだよ<PARA>さあ　えらんでよ！',
+    (0x1B, 0x6A9D): 'ウツギ{72}え？　オーキドはかせが<LINE><POKEMON>ずかんを　ジョウトでも<CONT>つかえるように　してくれた！？<PARA>'
+                    'さすが　オーキドはかせ　だね！<LINE>カントーの　チャンピオンの<CONT>{14}　なら<PARA>'
+                    'ジョウトの　ずかんも<LINE>きっと　すぐに　うまるよ！<PARA>'
+                    '<POKEMON>も　なついてるようだし<LINE>ジョウトの　<POKEMON>ジムにも<CONT>ちょうせん　してみたら　どうかな？<PARA>'
+                    'ここからだと　キキョウシティの<LINE><POKEMON>ジムが　いちばん　ちかいよ',
     (0x1B, 0x6B6F): '<……>　{14}<LINE>ジョウトの　たびも<CONT>ながく　なると　おもう<PARA>'
                     'マサラの　おかあさんにも<LINE>れんらく　しておくんだよ',
     (0x1B, 0x6E91): 'ウツギ{72}やあ　{14}<LINE>まっていたよ！<PARA>きょう　きみを　よんだのは<LINE>あげたいものが　あるからなんだ！<PARA>'
