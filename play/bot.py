@@ -204,7 +204,9 @@ def _goto(s, tx, ty, tries=40, stop_battle=True):
     for t in range(tries):
         k, x, y = s.where()
         if (x, y) == (tx, ty): return True
-        p = s.path(tx, ty)
+        av = {(w[0], w[1]) for w in s.db.warps(k)} - {(tx, ty), (x, y)}
+        p = s.path(tx, ty, extra_block=av)
+        if p is None: p = s.path(tx, ty)
         if p is None:
             p2 = s.path(tx, ty, ignore_objs=True)
             if p2 is None or s.talked > 6:

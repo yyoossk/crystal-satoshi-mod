@@ -1,0 +1,20 @@
+import functools; print = functools.partial(print, flush=True)
+from mlib import *
+b=Bot(state=SC+'/play/ship0.st', out=SC+'/play/run/ship')
+b.go_warp_xy(30,14); b.ev(shots=False)
+b.talk_to(31,6) if (31,6) in b.objpos() else b.talk_to(30,6)
+print('sailor', b.where(), b.objpos(), b.log[-2:])
+b.go_warp_xy(31,13); b.ev(shots=False)
+b.go_warp_xy(19,8); b.ev(shots=False); print('NE cabin', b.where(), b.objpos())
+b.talk_to(4,26); 
+for i in range(6): b.ev(shots=False); b.wait(30)
+print('lazy', b.where(), b.objpos(), b.log[-2:])
+b.g.save_state(SC+'/play/ship1.st')
+b.go_warp_xy(2,24); b.ev(shots=False); print(b.where())
+r=b.travel((15,6)); print('captain', r, b.where(), b.log[-3:])
+print(b.objpos())
+for o in [(2,25),(3,25)]:
+    if o in b.objpos(): b.talk_to(*o); b.ev()
+for i in range(8): b.wait(60); b.ev(shots=False)
+print('after', b.where(), b.objpos(), b.log[-2:])
+b.g.save_state(SC+'/play/ship2.st')

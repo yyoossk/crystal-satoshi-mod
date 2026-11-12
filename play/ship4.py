@@ -1,0 +1,10 @@
+import functools; print = functools.partial(print, flush=True)
+from mlib import *
+b=Bot(state=SC+'/play/ship3.st', out=SC+'/play/run/ship4')
+for i in range(5): b.wait(60); b.ev()
+r=b.travel((15,3)); print('1F', r, b.where(), b.log[-2:])
+for i in range(5): b.wait(60); b.ev()
+b.refresh_grid(); r=b.go_warp_xy(25,1); print('exit', r, b.where(), b.log[-2:])
+for i in range(12): b.wait(60); b.ev()
+print(b.where()); b.shot('land')
+b.g.save_state(SC+'/play/nb0.st')
