@@ -145,6 +145,10 @@ from portlib import Space as _Space
 from lib import attrs as _attrs
 WALK = {0x00, 0x18, 0x14, 0x10, 0x70, 0x71, 0x7A, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0x7B, 0x7C, 0x7D, 0x7E, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79}
 _GC = {}
+WALLS = {0xB0: 'R', 0xB1: 'L', 0xB2: 'U', 0xB3: 'D', 0xB4: 'DR', 0xB5: 'DL', 0xB6: 'UR', 0xB7: 'UL'}
+OPPD = {'R': 'L', 'L': 'R', 'U': 'D', 'D': 'U'}
+def wall_block(G, x, y, nx, ny, d):
+    return d in WALLS.get(G[y][x], '') or OPPD[d] in WALLS.get(G[ny][nx], '')
 def grid_of(rom, h):
     if h in _GC: return _GC[h]
     a = _attrs(rom, h); ts = rom[h + 1]
@@ -186,6 +190,7 @@ def _path(s, tx, ty, extra_block=(), allow_target=True, ignore_objs=False):
             elif c == 0xA1 and dx == -1 and G[ny][nx - 1] in WALK: nx, ok = nx - 1, True
             if (nx, ny) in prev: continue
             if (k, p, d) in s.blocked: continue
+            if (abs(nx - p[0]) + abs(ny - p[1]) == 1) and wall_block(G, p[0], p[1], nx, ny, d): continue
             if ok and ((nx, ny) not in block or (nx, ny) == (tx, ty)):
                 prev[(nx, ny)] = (p, d); q.append((nx, ny))
     if (tx, ty) not in prev: return None
@@ -195,6 +200,7 @@ def _path(s, tx, ty, extra_block=(), allow_target=True, ignore_objs=False):
 Bot.path = _path
 
 def _goto(s, tx, ty, tries=40, stop_battle=True):
+    s.talked = 0
     for t in range(tries):
         k, x, y = s.where()
         if (x, y) == (tx, ty): return True
@@ -368,6 +374,7 @@ def _reach_set(G, starts):
         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             nx, ny = x + dx, y + dy
             if not (0 <= nx < W and 0 <= ny < H): continue
+            if wall_block(G, x, y, nx, ny, {(1, 0): 'R', (-1, 0): 'L', (0, 1): 'D', (0, -1): 'U'}[(dx, dy)]): continue
             c = G[ny][nx]; t = None
             if c in WALK: t = (nx, ny)
             elif c == 0xA3 and dy == 1 and ny + 1 < H and G[ny + 1][nx] in WALK: t = (nx, ny + 1)
