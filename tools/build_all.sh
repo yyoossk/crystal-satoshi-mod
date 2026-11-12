@@ -57,5 +57,6 @@ python3 build_phase57.py ../build/p56.gbc ../build/p57.gbc ../build/p57.ips   # 
 python3 build_phase58.py ../build/p57.gbc ../build/p58.gbc ../build/p58.ips   # フシギダネ・ヒトカゲ・ゼニガメをピカチュウ版どおりにもらえる（ハナダのメラニー・24ばんどうろ・クチバのジュンサーさん）
 python3 build_phase59.py ../build/p58.gbc ../build/p59.gbc ../build/p59.ips   # タマムシのけいひんをピカチュウ版どおりに（ケーシィ・ロコン・プクリン・ストライク・カイロス・ポリゴン）
 python3 build_phase60.py ../build/p59.gbc ../build/p60.gbc ../build/p60.ips   # ジョウトは第二世代だけ（野生・つり・ずつき・いわくだき・むしとり・もらう・止まっている・景品・交換）
-cp ../build/p60.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase61.py ../build/p60.gbc ../build/p61.gbc ../build/p61.ips   # 御三家・セレビィキット：セレビィ（鳥なし、$47:$7E40 へ）・ジョウトの御三家3びき（rgbds 1.0.4）
+cp ../build/p61.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"

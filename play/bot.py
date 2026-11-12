@@ -13,7 +13,7 @@ W_BATTLE = 0xD25E
 TEST = SC + '/build/test_play.gbc'
 
 
-def make_test_rom(src=SC + '/build/p60.gbc'):
+def make_test_rom(src=SC + '/build/p61.gbc'):
     r = bytearray(open(src, 'rb').read())
     o = 0x25 * 0x4000 + 0x6B4E - 0x4000
     assert r[o:o + 5] == bytes([0x3E, 0x25, 0x21, 0x5F, 0x6B])
