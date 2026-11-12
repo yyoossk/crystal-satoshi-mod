@@ -2,7 +2,7 @@
 from t57 import *
 import sys
 what = sys.argv[1:]
-make_test_rom(SC + '/build/p57.gbc')
+make_test_rom(SC + '/build/p57.gbc') if __name__ == '__main__' else None
 out = SC + '/run/t57b'
 
 
