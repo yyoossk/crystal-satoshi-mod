@@ -18,6 +18,9 @@ are Red's (sprite, movement, line), at Red's place or the nearest free floor til
  * Rocket Hideout B1F: the door to the elevator room opens right after its guard (Red: "the door opened in the
    commotion") — the tiles callback ran before the trainer flag was set, so it stayed shut until the map was entered
    again; the guard's after-battle script now opens it (changeblock, door sound, refresh).
+ * Victory Road Gate: Crystal's black belt at (12, 5) stood in the way from Route 22 (hidden only after Crystal's Vermilion
+   Snorlax, which this MOD's Kanto never sets: the road to the League was shut).  Kanto comes first here: he is hidden
+   once the player has a starter (his hide flag = EV_GOT_STARTER).
  * Mt. Moon 1F's item ball (Red: TM12 Water Gun) gives TM12 as the other Red TMs give the TM of the same number
    (phase 15 gave TM11, the same as Misty's).
 Flags used: 521-524 (0xA09-0xA0C) and the byte of 528-535 (0xA10-0xA17); the next phase starts at 536.
@@ -235,6 +238,18 @@ def main():
     base = a.base; blob = a.done(); assert sp.put(m_['scbank'], blob) == base
     rom[hb_ + 10] = base & 0xFF; rom[hb_ + 11] = base >> 8
     log.append('RocketHideoutB1F: the door opens after its guard (block %02X, %X:%04X)' % (blk_open, m_['scbank'], base))
+
+    # ================= Victory Road Gate: the black belt on the way from Route 22
+    me = MapEvents(rom, 'VictoryRoadGate')
+    bb = [o for o in me.objs if (o[0][2] - 4, o[0][1] - 4) == (12, 5)]; assert len(bb) == 1
+    EV_GOT_STARTER = 0x342
+    bb[0][0][11] = EV_GOT_STARTER & 0xFF; bb[0][0][12] = EV_GOT_STARTER >> 8
+    BANK = [B_ for B_ in BANKS if sp.cur[B_][1] - sp.cur[B_][0] > 300][0]
+    a = Asm(sp.here(BANK)); a.bank = BANK
+    me.write(a, sp)
+    base = a.base; blob = a.done(); assert sp.put(BANK, blob) == base
+    me.install(a)
+    log.append('VictoryRoadGate: the right black belt hidden after the starter, events %X:%04X' % (BANK, base))
 
     # ================= appear: no second copy
     CO = 0x80E7; assert rom[CO] == 0xCD and rom[CO + 3:CO + 5] == bytes([0xA7, 0xC0])

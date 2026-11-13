@@ -94,11 +94,15 @@ def maxparty(b, move=DRAGONBREATH):
 def talk_map(b, skip=()):
     """talk to every person of the map's object table: walk near the start position, then talk to the nearest one"""
     k = b.where()[0]; got = []; SPIN = bool(spinners(b, k))
+    WT = {(w[0], w[1]) for w in b.db.warps(k)}
     for o in b.db.objs(k):
         x0, y0 = o[2] - 4, o[1] - 4
         if (x0, y0) in skip: continue
         for dx, dy in ((0, 2), (0, -2), (2, 0), (-2, 0), (0, 1), (1, 0), (-1, 0), (0, -1), (1, 1), (-1, -1), (0, 3), (3, 0)):
+            if (x0 + dx, y0 + dy) in WT: continue
+            if b.where()[0] != k: break
             if (SPIN or b.path(x0 + dx, y0 + dy) is not None) and b.goto(x0 + dx, y0 + dy): break
+        if b.where()[0] != k: print('  left the map', b.where(), flush=True); break
         ps = b.objpos()
         if not ps: print('  no one near', (x0, y0), flush=True); continue
         x, y = min(ps, key=lambda p: abs(p[0] - x0) + abs(p[1] - y0))
@@ -123,6 +127,7 @@ def fast(b, wild=False):
         def gt(s, *a, **k):
             if getattr(s, 'norepel', False) is False and s.peek(0xFF70)[0] & 7 in (0, 1): s.g.poke(W_REPEL, 250)
             m = s.where()[0]
+            if LIVE[0]: live_grid(s)
             if m not in SPC: SPC[m] = bool(spinners(s, m))
             if SPC[m] and len(a) >= 2: return sgoto(s, a[0], a[1])
             return og(s, *a, **k)
@@ -143,8 +148,11 @@ def tour(b, target, visit=True, hops=60, skipmaps=()):
         k = b.where()[0]
         if visit and k not in seen and k not in skipmaps:
             seen.add(k); print('== map', k, b.where(), mus(b), 'objs', [(o[2]-4, o[1]-4, o[0]) for o in b.db.objs(k)], flush=True)
-            snap(b); talk_map(b); b.g.save_state(ST % ('%s_%d_%d' % (b.tag, k[0], k[1])))
+            snap(b); talk_map(b)
+            if DOORS[0]: open_doors(b)
+            b.g.save_state(ST % ('%s_%d_%d' % (b.tag, k[0], k[1])))
         if k == target: return True
+        if LIVE[0]: live_grid(b)
         p = b.plan(target, AVOID)
         if not p: print('no plan', k, flush=True); return False
         k0, kind, arg, d = p[0]
@@ -238,3 +246,136 @@ def hop(b, target):
             b.wait(30); b.clear_text(shots=False)
             if b.where()[0] == target: return True
     print('  hop failed', k, '->', target, b.where(), flush=True); return False
+def live_grid(b):
+    """the current map's collision from the blocks in RAM (doors opened / closed by scripts), into the bot's grid cache"""
+    import bot as _b
+    k = b.where()[0]; m = b.db.maps.get(k)
+    if not m: return None
+    h = m['hdr']; a = _b._attrs(b.db.r, h); w, hh = a['w'], a['h']
+    x = b.peek(0xC800, (w + 6) * (hh + 6))
+    TS = _b._PM.Tilesets(b.db.r, _b._Space(b.db.r)); co = TS.coll_off(b.db.r[h + 1])
+    old = _b._GC.get(h) or _b.grid_of(b.db.r, h)
+    G = _b._Grid([0] * (2 * w) for _ in range(2 * hh)); G.red = getattr(old, 'red', False)
+    for by in range(hh):
+        for bx in range(w):
+            blk = x[(by + 3) * (w + 6) + 3 + bx]
+            for q in range(4): G[2 * by + q // 2][2 * bx + q % 2] = b.db.r[co + 4 * blk + q]
+    _b._GC[h] = G
+    if hasattr(b, '_reach'): b._reach = {}
+    return G
+LIVE = [False]
+DOORS = [False]
+def open_doors(b):
+    """Silph Co.: open every card-key door of this floor (bg events: checkevent, ..., checkitem card key)"""
+    import bot as _b
+    k = b.where()[0]; m = b.db.maps[k]; r = b.db.r; doors = {}
+    for _, c in m['ev']['bgs']:
+        y, x = c[0], c[1]; a = m['scbank'] * 0x4000 + (c[3] | c[4] << 8) - 0x4000
+        if bytes([0x21, 0x89]) in r[a:a + 12]: doors.setdefault(r[a + 1] | r[a + 2] << 8, []).append((x, y))
+    D = {'U': (0, -1), 'D': (0, 1), 'L': (-1, 0), 'R': (1, 0)}
+    for fl, tiles in doors.items():
+        G = live_grid(b); done_ = False
+        for (x, y) in tiles:
+            for d, (dx, dy) in D.items():
+                sx, sy = x - dx, y - dy
+                if (sx, sy) in tiles or not (0 <= sy < len(G) and 0 <= sx < len(G[0])) or G[sy][sx] not in _b.WALK: continue
+                if b.path(sx, sy, extra_block={(w[0], w[1]) for w in b.db.warps(k)}, ignore_objs=True) is None: continue
+                if safe_goto(b, sx, sy, tries=3):
+                    b.face(d); b.press('A', 40); ev(b, 10); done_ = True; break
+            if done_: break
+        print('  door', hex(fl), tiles[0], 'opened' if done_ else 'not reached', flush=True)
+    live_grid(b)
+def safe_goto(b, tx, ty, block=(), tries=8):
+    """walk a path that never touches a warp tile (but the target) or the given tiles; replan when a step fails"""
+    k = b.where()[0]
+    for t in range(tries):
+        if b.textbox() or b.in_battle(): ev(b, 20)
+        k2, x, y = b.where()
+        if k2 != k: return False
+        if (x, y) == (tx, ty): return True
+        av = ({(w[0], w[1]) for w in b.db.warps(k)} | set(block) | set(b.objpos())) - {(tx, ty), (x, y)}
+        p = b.path(tx, ty, extra_block=av, ignore_objs=True)
+        if p is None: return False
+        for d in p:
+            if not b.step(d):
+                if b.textbox() or b.in_battle(): ev(b, 20)
+                break
+    return b.where()[1:] == (tx, ty)
+def fly(b, k, x, y):
+    """move like Fly / an Escape Rope (a warp script) to map k at (x, y): for places already checked on foot"""
+    b.script([0x3C, k[0], k[1], x, y], 120); b.wait(60); ev(b, 10)
+    return b.where()
+def wgoto(b, tx, ty, tries=80):
+    """goto inside a map whose warps lead to the same map (Saffron Gym's pads): BFS over walking + pads"""
+    import bot as _b
+    from collections import deque
+    k = b.where()[0]; W = b.db.warps(k)
+    PAD = {}
+    for w in W:
+        if (w[3], w[4]) == k:
+            dw = W[w[2] - 1]; PAD[(w[0], w[1])] = (dw[0], dw[1])
+    OUT = {(w[0], w[1]) for w in W if (w[3], w[4]) != k}
+    G = _b.grid_of(b.db.r, b.db.maps[k]['hdr'])
+    def ok(x, y): return 0 <= y < len(G) and 0 <= x < len(G[0]) and G[y][x] in _b.WALK
+    D = {'U': (0, -1), 'D': (0, 1), 'L': (-1, 0), 'R': (1, 0)}
+    bad = set()
+    for t in range(tries):
+        if b.textbox() or b.in_battle(): ev(b, 20)
+        k2, x, y = b.where()
+        if k2 != k: return False
+        if (x, y) == (tx, ty): return True
+        blk = set(b.objpos()) | bad | (OUT - {(tx, ty)})
+        prev = {(x, y): None}; q = deque([(x, y)]); found = False
+        while q:
+            p = q.popleft()
+            if p == (tx, ty): found = True; break
+            for d, (dx, dy) in D.items():
+                n = (p[0] + dx, p[1] + dy)
+                if not ok(*n) or n in blk: continue
+                n2 = PAD.get(n, n) if n != (tx, ty) else n
+                if n2 not in prev: prev[n2] = (p, d); q.append(n2)
+        if not found: return False
+        path = []; p = (tx, ty)
+        while prev[p]: p, d = prev[p][0], prev[p][1]; path.append((d, p))
+        path.reverse()
+        d, p = path[0]
+        b.step(d); b.wait(30)
+        for i in range(10):
+            p0 = b.where(); b.wait(12)
+            if b.where() == p0: break
+        if b.where()[1:] == (x, y) and not b.textbox() and not b.in_battle():
+            dx, dy = D[d]; bad.add((x + dx, y + dy))
+    return b.where()[1:] == (tx, ty)
+def switches(b):
+    """bg events facing up that ask a question (the Pokémon Mansion's secret switches): [(x, y)]"""
+    k = b.where()[0]; m = b.db.maps[k]; out = []
+    for _, c in m['ev']['bgs']:
+        if c[2] == 1: out.append((c[1], c[0]))
+    return out
+def press_switch(b, x, y):
+    import bot as _b
+    for sx, sy, d in ((x, y + 1, 'U'),):
+        if safe_goto(b, sx, sy, tries=4):
+            b.face(d); b.press('A', 40)
+            for i in range(8):
+                if b.textbox(): b.press('A', 40)
+                else: break
+            live_grid(b); return True
+    return False
+def solve_to(b, target, rounds=8):
+    """tour to target; when there is no plan, press this map's switches one by one"""
+    import itertools
+    for r in range(rounds):
+        live_grid(b)
+        if b.plan(target, AVOID):
+            if tour(b, target): return True
+        k = b.where()[0]
+        sw = switches(b); print('  no plan from', b.where(), 'switches', sw, flush=True)
+        if not sw: return False
+        pressed = False
+        for s in sw:
+            if press_switch(b, *s):
+                pressed = True; live_grid(b)
+                if b.plan(target, AVOID): break
+        if not pressed: return False
+    return b.where()[0] == b.mapk(target)

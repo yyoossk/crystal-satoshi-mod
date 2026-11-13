@@ -225,11 +225,10 @@ def _goto(s, tx, ty, tries=40, stop_battle=True):
         if (x, y) == (tx, ty): return True
         av = {(w[0], w[1]) for w in s.db.warps(k)} - {(tx, ty), (x, y)}
         p = s.path(tx, ty, extra_block=av)
-        if p is None: p = s.path(tx, ty)
         if p is None and s.blocked:
-            s.blocked = set(); p = s.path(tx, ty)
+            s.blocked = set(); p = s.path(tx, ty, extra_block=av)
         if p is None:
-            p2 = s.path(tx, ty, ignore_objs=True)
+            p2 = s.path(tx, ty, ignore_objs=True, extra_block=av)
             if p2 is None or s.talked > 6:
                 s.log.append('no path %s -> %s' % ((k, x, y), (tx, ty))); return False
             # walk until an object is in the way, then talk to it
