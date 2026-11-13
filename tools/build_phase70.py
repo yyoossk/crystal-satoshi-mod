@@ -14,6 +14,9 @@
    events on the north entry, which end at once after the starter) clears the sign's timer (PlayerEvents).  Those two
    coord events now belong to scene 0 of a scene byte that is 0 only before the starter: the event flags' byte of
    EV_GOT_STARTER (flags $340-$347: $342-$347 are the starter's, set together).
+ * The map name sign in Kanto: the Gen I overworld tileset's palettes (from the Pikachu full-color hack) had red / blue
+   in palette 7 (the text and sign palette; its tiles use it only for $60-$7f), so the sign was red with a blue frame.
+   Palette 7 is now the one Crystal shows the sign with (white, light blue, dark blue, black).
 usage: build_phase70.py IN.gbc OUT.gbc OUT.ips
 """
 import sys, os
@@ -143,6 +146,15 @@ def main():
     at = sp.put(BANK, tab + b'\xff'); rom[sr] = BANK; rom[sr + 3] = at & 0xFF; rom[sr + 4] = at >> 8
     rom[tb:tb + 4 * n_ + 1] = b'\xff' * (4 * n_ + 1)
     log.append('PalletTown: scene byte %04X (coord events at %s)' % (sb, [hex(o_) for o_, c in stops]))
+
+    # ================= Kanto's sign: palette 7 as in Crystal
+    old7, new7 = bytes.fromhex('ff7f1f21eb7e630c'), bytes.fromhex('ff7f6872a5400000')
+    assert rom.count(new7) == 1                                                # Crystal's (bank $12)
+    hits = []; i = rom.find(old7)
+    while i >= 0:
+        assert rom[i - 56:i - 48] == bytes.fromhex('fb6fb556ad35e71c'); hits.append(i); rom[i:i + 8] = new7; i = rom.find(old7)
+    assert len(hits) == 2, hits
+    log.append('palette 7 of the Gen I overworld tileset at %s' % [hex(h) for h in hits])
 
     fix_checksum(rom)
     open(outrom, 'wb').write(rom)
