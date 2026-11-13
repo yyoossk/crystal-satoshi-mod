@@ -4,7 +4,7 @@ from t64a import *
 from kt import sheet, uniq, seq
 import bot as _bot
 _bot.NOHEAL[0] = True
-ROM = 'p74'
+ROM = 'p75'
 make_test_rom(SC+'/build/%s.gbc' % ROM)
 ST = SC + '/play/pt_%s.st'
 def B(prev, tag):
@@ -116,3 +116,35 @@ def fast(b, wild=False):
             if getattr(s, 'norepel', False) is False: s.bank1(); s.g.poke(W_REPEL, 250)
             return ot(s, *a, **k)
         _b.Bot.travel = tr; _b.Bot._fastwrap = True
+        og = _b.Bot.goto
+        def gt(s, *a, **k):
+            if getattr(s, 'norepel', False) is False and s.peek(0xFF70)[0] & 7 in (0, 1): s.g.poke(W_REPEL, 250)
+            return og(s, *a, **k)
+        _b.Bot.goto = gt
+        ob = _b.Bot.battle
+        def bt(s, *a, **k):
+            r = ob(s, *a, **k)
+            s.bank1(); n = s.peek(0xDC9D)[0]
+            for i in range(min(n, 6)): s.g.pokes(0xDCA5 + 0x30 * i + 0x17, [0xE0] * 4)    # PP back (the bot keeps one move)
+            return r
+        _b.Bot.battle = bt
+AVOID = tuple((20, i) for i in range(1, 8))
+def tour(b, target, visit=True, hops=60, skipmaps=()):
+    """travel hop by hop; on each new map talk to everyone (trainers, people) and print what happened"""
+    seen = set(); target = b.mapk(target)
+    for i in range(hops):
+        k = b.where()[0]
+        if visit and k not in seen and k not in skipmaps:
+            seen.add(k); print('== map', k, b.where(), mus(b), 'objs', [(o[2]-4, o[1]-4, o[0]) for o in b.db.objs(k)], flush=True)
+            snap(b); talk_map(b); b.g.save_state(ST % ('%s_%d_%d' % (b.tag, k[0], k[1])))
+        if k == target: return True
+        p = b.plan(target, AVOID)
+        if not p: print('no plan', k, flush=True); return False
+        k0, kind, arg, d = p[0]
+        if kind == 'warp':
+            wx, wy = b.db.warps(k0)[arg][:2]; b.go_warp_xy(wx, wy)
+        else:
+            b.cross({'N': 'U', 'S': 'D', 'W': 'L', 'E': 'R'}[arg])
+        b.clear_text(shots=False)
+        if b.where()[0] == k: print('stuck', b.where(), p[0], flush=True); ev(b, 30)
+    return False
