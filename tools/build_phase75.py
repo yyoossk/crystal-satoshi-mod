@@ -6,6 +6,8 @@ are Red's (sprite, movement, line), at Red's place or the nearest free floor til
  * "appear" on a person who is already on the screen made a second copy of him (Crystal's CopyObjectStruct does not
    check; the map's own loaders do): Cerulean's guard stood doubled after the backyard Rocket.  CopyObjectStruct
    (02:40E7) now returns when the person already has an object struct.
+ * Vermilion's passage to the dock: Crystal's teacher ("the fast ship sails on Wednesdays and Sundays") stands there
+   only after the Hall of Fame (the S.S. Aqua's time); before it, as in Red, no one (objects callback, flag 521).
  * Mt. Moon 1F's item ball (Red: TM12 Water Gun) gives TM12 as the other Red TMs give the TM of the same number
    (phase 15 gave TM11, the same as Misty's).
 usage: build_phase75.py IN.gbc OUT.gbc OUT.ips
@@ -102,6 +104,24 @@ def main():
     assert len(hit) == 1
     rom[hit[0]] = P12.tm_item(12)
     log.append('MtMoon1F: TM11 -> TM12 at %X' % hit[0])
+
+    # ================= Vermilion's passage: the S.S. Aqua teacher only after the HoF
+    import portmaps as PM
+    import build_phase17 as P17
+    FL = PM.Flags(521)
+    me = MapEvents(rom, 'VermilionPortPassage')
+    assert len(me.objs) == 1 and me.objs[0][0][0] == 0x29 and (me.objs[0][0][2] - 4, me.objs[0][0][1] - 4) == (17, 1)
+    t_hide = FL.new()
+    me.objs[0][0][11] = t_hide & 0xFF; me.objs[0][0][12] = t_hide >> 8
+    BANK = [B_ for B_ in BANKS if sp.cur[B_][1] - sp.cur[B_][0] > 300][0]
+    a = Asm(sp.here(BANK)); a.bank = BANK
+    a.label('pp_cb'); a.checkevent(P17.EV_HOF); a.iftrue('pp_hof'); a.setevent(t_hide); a.endcallback()
+    a.label('pp_hof'); a.clearevent(t_hide); a.endcallback()
+    me.callbacks.append((2, 'pp_cb'))
+    me.write(a, sp)
+    base = a.base; blob = a.done(); assert sp.put(BANK, blob) == base
+    me.install(a)
+    log.append('VermilionPortPassage: teacher after the HoF (flag %X), events %X:%04X' % (t_hide, BANK, base))
 
     # ================= appear: no second copy
     CO = 0x80E7; assert rom[CO] == 0xCD and rom[CO + 3:CO + 5] == bytes([0xA7, 0xC0])
