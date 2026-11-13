@@ -68,5 +68,8 @@ python3 build_phase68.py ../build/p67.gbc ../build/p68.gbc ../build/p68.ips   # 
 python3 build_phase69.py ../build/p68.gbc ../build/p69.gbc ../build/p69.ips   # カントー（赤の マップ）の 段差を 赤と 同じに（手前から とびこえる・ほかの 向きは かべ）
 python3 build_phase70.py ../build/p69.gbc ../build/p70.gbc ../build/p70.ips   # 曲が 元に もどる・お母さんの 所へ 歩いて ポケギア・シゲルの ねえさんが ポケギアに タウンマップ
 python3 build_phase71.py ../build/p70.gbc ../build/p71.gbc ../build/p71.ips   # 主人公の見た目を赤フルカラーと同じに（フィールド・自転車・名前の画面・戦闘の後ろ姿・トレーナーカード・色）
-cp ../build/p71.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase72.py ../build/p71.gbc ../build/p72.gbc ../build/p72.ips   # サトシの部屋の PC・ファミコン、1階の テレビ、オーキド研究所の PC の メールを 赤と 同じに
+python3 build_phase73.py ../build/p72.gbc ../build/p73.gbc ../build/p73.ips   # カントーの ポケモンセンターの 人と ことばを 赤と 同じに
+python3 build_phase74.py ../build/p73.gbc ../build/p74.gbc ../build/p74.ips   # 負けた 戦いの あと 次の トレーナーで リセットされる 不具合を なおす
+cp ../build/p74.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"

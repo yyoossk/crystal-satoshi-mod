@@ -4,7 +4,7 @@ from t64a import *
 from kt import sheet, uniq, seq
 import bot as _bot
 _bot.NOHEAL[0] = True
-ROM = 'p73'
+ROM = 'p74'
 make_test_rom(SC+'/build/%s.gbc' % ROM)
 ST = SC + '/play/pt_%s.st'
 def B(prev, tag):
@@ -77,3 +77,42 @@ def grind(b, target, area='Route1', spot=(10, 3), pc=(23, 9), town='ViridianCity
         if h * 3 < m or b.where()[0] == pc:
             heal(b, pc, town)
         print('lv', lv(b), 'hp', hp(b), b.where(), flush=True)
+DRAGONBREATH = 0xE1
+def maxparty(b, move=DRAGONBREATH):
+    """user's request: every party Pokémon Lv100, with a move that hits every type (Dragon)"""
+    b.bank1(); n = b.peek(0xDC9D)[0]
+    for i in range(min(n, 6)):
+        o = 0xDCA5 + 0x30 * i
+        b.g.pokes(o + 2, [move] * 4)
+        b.g.pokes(o + 0x08, [0x13, 0x12, 0xD0])            # exp 1,250,000
+        b.g.pokes(o + 0x17, [0xE0] * 4)                      # PP 32
+        b.g.poke(o + 0x1F, 100); b.g.poke(o + 0x20, 0)
+        b.g.pokes(o + 0x22, [1, 0x5E, 1, 0x5E])               # HP 350/350
+        b.g.pokes(o + 0x26, [0, 250] * 5)
+def talk_map(b, skip=()):
+    """talk to every person of the map's object table: walk near the start position, then talk to the nearest one"""
+    k = b.where()[0]; got = []
+    for o in b.db.objs(k):
+        x0, y0 = o[2] - 4, o[1] - 4
+        if (x0, y0) in skip: continue
+        for dx, dy in ((0, 2), (0, -2), (2, 0), (-2, 0), (0, 1), (1, 0), (-1, 0), (0, -1), (1, 1), (-1, -1), (0, 3), (3, 0)):
+            if b.path(x0 + dx, y0 + dy) is not None and b.goto(x0 + dx, y0 + dy): break
+        ps = b.objpos()
+        if not ps: print('  no one near', (x0, y0), flush=True); continue
+        x, y = min(ps, key=lambda p: abs(p[0] - x0) + abs(p[1] - y0))
+        print('  talk', (x0, y0), '->', (x, y), flush=True)
+        b.talk_to(x, y, n=0); snap(b); ev(b, 30); got.append((x0, y0))
+    return got
+W_OPTIONS, W_REPEL = 0xCFC0, 0xDC67
+def fast(b, wild=False):
+    """faster checking: text speed fast, battle animations off ("set" style); with the party at Lv100 a Repel keeps every
+    wild Pokémon away (refreshed on every travel) unless wild=True"""
+    b.g.poke(W_OPTIONS, 0xC1)
+    if not wild: b.bank1(); b.g.poke(W_REPEL, 250)
+    import bot as _b
+    if not getattr(_b.Bot, '_fastwrap', False):
+        ot = _b.Bot.travel
+        def tr(s, *a, **k):
+            if getattr(s, 'norepel', False) is False: s.bank1(); s.g.poke(W_REPEL, 250)
+            return ot(s, *a, **k)
+        _b.Bot.travel = tr; _b.Bot._fastwrap = True
