@@ -23,7 +23,8 @@ CENTERS = [('ViridianPokecenter1F', 'ViridianPokecenter', 0x29), ('PewterPokecen
            ('SaffronPokecenter1F', 'SaffronPokecenter', 0xB6), ('FuchsiaPokecenter1F', 'FuchsiaPokecenter', 0x9A),
            ('CinnabarPokecenter1F', 'CinnabarPokecenter', 0xAB), ('Route10Pokecenter1F', 'RockTunnelPokecenter', 0x51)]
 NURSE = 0x37
-KEEP = {0x4B, 0xFC}                 # Crystal's Eusine (Celadon), a variable sprite (Fuchsia): kept
+KEEP = {0xFC}                       # a variable sprite (Fuchsia's Janine impersonator): kept
+EUSINE = ('CeladonPokecenter1F', 0x2B)   # Crystal's Eusine (Johto story, after the Ho-Oh): kept (0x4B is the pharmacist: Red's people)
 FLOOR = {0x00}
 
 
@@ -56,7 +57,7 @@ def main():
             for bx in range(w):
                 bl = rom[bo + by * w + bx]
                 for q in range(4): G[2 * by + q // 2][2 * bx + q % 2] = rom[co + 4 * bl + q]
-        keep = [o for o in me.objs if o[0][0] == NURSE or o[0][0] in KEEP or o[0][0] >= 0x80]
+        keep = [o for o in me.objs if o[0][0] == NURSE or o[0][0] in KEEP or o[0][0] >= 0x80 or (cname, o[0][0]) == EUSINE]
         assert keep and keep[0][0][0] == NURSE, cname
         taken = {(o[0][2] - 4, o[0][1] - 4) for o in keep} | {(w_[1], w_[0]) for w_ in me.warps}
         for x_, y_ in list(taken): taken |= {(x_, y_ + 1)} if (x_, y_) in {(w_[1], w_[0]) for w_ in me.warps} else set()

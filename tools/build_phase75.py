@@ -13,8 +13,11 @@ are Red's (sprite, movement, line), at Red's place or the nearest free floor til
    switch in a random even can, chosen when entering (NEWMAP callback: not again after a battle); the 2nd in a random neighbour; a wrong can resets the locks and
    moves the 1st switch); Red's lines.  Flags 522 (1st lock), 523 (2nd lock); the two can numbers in the byte of flags
    0xA10-0xA17 ($DA43).
+ * Celadon's Pokémon Center: Crystal's Eusine (kept by phase 73) stands there only after the Kanto Hall of Fame (the
+   Johto story) and until the Ho-Oh, as in Crystal (flag 524; objects callback).
  * Mt. Moon 1F's item ball (Red: TM12 Water Gun) gives TM12 as the other Red TMs give the TM of the same number
    (phase 15 gave TM11, the same as Misty's).
+Flags used: 521-524 (0xA09-0xA0C) and the byte of 528-535 (0xA10-0xA17); the next phase starts at 536.
 usage: build_phase75.py IN.gbc OUT.gbc OUT.ips
 """
 import sys, os
@@ -116,7 +119,8 @@ def main():
     FL = PM.Flags(521)
     me = MapEvents(rom, 'VermilionPortPassage')
     assert len(me.objs) == 1 and me.objs[0][0][0] == 0x29 and (me.objs[0][0][2] - 4, me.objs[0][0][1] - 4) == (17, 1)
-    t_hide = FL.new()
+    t_hide = FL.new(); assert t_hide == 0xA09
+    FL.new(); FL.new()                  # 0xA0A / 0xA0B: Vermilion Gym's locks (below)
     me.objs[0][0][11] = t_hide & 0xFF; me.objs[0][0][12] = t_hide >> 8
     BANK = [B_ for B_ in BANKS if sp.cur[B_][1] - sp.cur[B_][0] > 300][0]
     a = Asm(sp.here(BANK)); a.bank = BANK
@@ -128,10 +132,27 @@ def main():
     me.install(a)
     log.append('VermilionPortPassage: teacher after the HoF (flag %X), events %X:%04X' % (t_hide, BANK, base))
 
+    # ================= Celadon's Pokémon Center: Eusine after the HoF
+    me = MapEvents(rom, 'CeladonPokecenter1F')
+    eu = [o for o in me.objs if o[0][0] == 0x2B]; assert len(eu) == 1 and (eu[0][0][11] | eu[0][0][12] << 8) == 0x7B7
+    EU_HIDE = FL.new(); assert EU_HIDE == 0xA0C
+    eu[0][0][11] = EU_HIDE & 0xFF; eu[0][0][12] = EU_HIDE >> 8
+    assert not [t for t, r_ in me.callbacks if t == 2]
+    BANK = [B_ for B_ in BANKS if sp.cur[B_][1] - sp.cur[B_][0] > 300][0]
+    a = Asm(sp.here(BANK)); a.bank = BANK
+    a.label('eu_cb'); a.checkevent(P17.EV_HOF); a.iffalse('eu_h'); a.checkevent(0x7B7); a.iftrue('eu_h')
+    a.clearevent(EU_HIDE); a.endcallback()
+    a.label('eu_h'); a.setevent(EU_HIDE); a.endcallback()
+    me.callbacks.append((2, 'eu_cb'))
+    me.write(a, sp)
+    base = a.base; blob = a.done(); assert sp.put(BANK, blob) == base
+    me.install(a)
+    log.append('CeladonPokecenter1F: Eusine after the HoF (flag %X), events %X:%04X' % (EU_HIDE, BANK, base))
+
     # ================= Vermilion Gym: Red's trash cans
     from mini_asm import MA
     import redtexts as RT
-    EV1, EV2 = FL.new(), FL.new(); assert (EV1, EV2) == (0xA0A, 0xA0B)
+    EV1, EV2 = 0xA0A, 0xA0B
     BYTE = 0xDA43; HL_FLAGS = 0xDA42                 # EV1 = bit 2, EV2 = bit 3 of $DA42
     RANDOM, SCRIPTVAR = 0x2F5E, 0xC2DD
     SFX_PUSH_BUTTON, SFX_ENTER_DOOR = 0x11, 0x1F
