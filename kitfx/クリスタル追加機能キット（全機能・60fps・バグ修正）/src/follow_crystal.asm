@@ -244,8 +244,8 @@ F5_Misc:
 	fw_farcall FW_BANK, Fw_ReloadMask
 	ret
 F5_Prepare:
-	fw_farcall FW_BANK, Fw_Prepare
-	jp FW_ArrangeUsedSprites
+	fw_farcall FW_BANK, Fw_PrepareArrange   ; この MOD：並べた あと 人の タイルの 番号も なおす
+	ret
 F5_LoadObjects:
 	ld a, 2                           ; MAPCALLBACK_OBJECTS（先に。人を 出す・けす の あとで 空きを 決める）
 	call FW_RunMapCallback
@@ -301,7 +301,17 @@ SECTION "follow action step", ROMX[$445f + 2 * 4], BANK[$01]
 ; はやい 歩き（big_step $10〜$13）を、いまの 主人公の 速さ（Bダッシュ中か）に あわせて から わたす（1歩 おくれで たどるので、
 ; 記録した ときの 速さの ままだと、ダッシュの はじめは 1マス おくれて はなれ、ダッシュを やめた あとは 追いついて かさなって いた）
 SECTION "follow next move ptr", ROMX[$48a0 + 1], BANK[$01]
-	dw F1_NextMove
+	dw F1_NextMoveChk
+; 連れ歩き・イベントの follow 修正キット：速さを あわせるのは 連れ歩き（スプライト $e2）の とき だけ。イベントの follow
+; （キキョウシティの せんせい など）では 元の まま（せんせいの はやい 歩きを ふつうに して いて、主人公が おくれて はなれ、
+; せんせいが 消え、連れ歩きも 出なく なって いた）
+; この MOD：キットの $01:$7e84 は MOD が 使って いる（$7e80〜$7e91）ので、空いて いる $7e94 に おく
+SECTION "follow next move check", ROMX[$7e94], BANK[$01]
+F1_NextMoveChk:
+	ld a, [bc]                        ; OBJECT_SPRITE
+	cp FW_SPRITE
+	jp z, F1_NextMove
+	jp $54e6                          ; GetFollowerNextMovementIndex
 SECTION "follow bank1", ROMX[$7f40], BANK[$01]
 F1_NextMove:
 	call $54e6                        ; GetFollowerNextMovementIndex
@@ -963,6 +973,20 @@ Fw_GetSprite:
 ;---------------------------------------------------------------------
 ; ArrangeUsedSprites の 前：wUsedSprites（スプライト・種類 の 組）を 並べかえる
 ;   1番め（主人公の 次）を 連れ歩き（$e2。なければ 足す）に、そのあと この マップの 人が 使う 歩く・立つ スプライトを 前に よせる
+; この MOD：並べかえ（Fw_Prepare）と ArrangeUsedSprites の あと、出て いる 人の OBJECT_SPRITE_TILE を なおす。
+;   並べかえは 手持ちの 有無 や 出て いる 人で かわるので、マップを 読んだ ときと ちがう 並びに なる ことが ある
+;   （戦闘・名前の 画面から もどった とき）。なおさないと 人が ほかの 人の 絵で 出た（オーキド研究所で はじめの
+;   ポケモンを もらった あと：ボールが シゲル、オーキドが ヒトカゲ、戦闘の あとの シゲルが オーキド の 絵）
+Fw_PrepareArrange:
+	call Fw_Prepare
+	fw_farcall 5, FW_ArrangeUsedSprites
+	ldh a, [hMapObjectIndex]
+	push af
+	call Fw_RefreshTiles
+	pop af
+	ldh [hMapObjectIndex], a
+	ret
+
 Fw_Prepare:
 	fw_wram2
 	xor a
@@ -1481,6 +1505,22 @@ Fw_MapSpritesOK:
 	and a                             ; ない
 	ret
 .found
+	; この MOD：12タイルの 絵が 2つめの 表（$80〜）に ある ときも 読みなおす（歩きの コマが こわれる。同じ 組の
+	; マップへの つながり：トキワシティ（シゲルを 使わない）→ 22ばんどうろの シゲル）
+	ld a, [hl]
+	bit 7, a
+	jr z, .foundok
+	push bc
+	ld a, e
+	call Fw_SpriteLen
+	ld a, e
+	pop bc
+	cp 12
+	jr nz, .foundok
+	pop hl
+	and a                             ; 読みなおす
+	ret
+.foundok
 	pop hl
 .next
 	ld de, $10
@@ -1870,6 +1910,13 @@ Fw_BallSetRange0:
 ; はやい 歩き（big_step $10〜$13。自転車・Bダッシュと 同じ 速さ）に する。ふりかえって 主人公と 入れかわった あとや
 ; follow を しなおした あとの 1歩目が ふつうの 速さに なって、走って いる 間 1マス おくれて いた
 Fw_FastQueue:
+	; 連れ歩き・イベントの follow 修正キット：スクリプトの 間・人が 先頭の follow では さわらない
+	ld a, [wScriptMode]
+	and a
+	ret nz
+	ld a, [wObjectFollow_Leader]
+	and a
+	ret nz
 	ldh a, [hJoyDown]
 	and FW_B_BUTTON
 	ret z
@@ -2345,6 +2392,29 @@ Fw_Remap:
 	pop bc
 	pop hl                            ; h ＝ 絵の 番号
 	jr nc, .p1pend
+	; この MOD：前の 並びで 2つめの 表（$80〜）に あった 12タイルの 絵は、同じ 所に のこさず 新しい 絵と して おきなおす
+	; （前の マップで 使わない 歩く 絵は 2つめの 表に 入る。つながりで その 絵を 使う マップに 入ると、歩きの コマが
+	;  BG の タイルに なって 字の ように こわれた：トキワ → 22ばんどうろの シゲル）
+	bit 7, a
+	jr z, .p1keep
+	push af
+	push bc
+	push de
+	push hl
+	ld a, h
+	call Fw_SpriteLen
+	ld a, e
+	pop hl
+	pop de
+	pop bc
+	cp 12
+	jr z, .p1w2
+	pop af
+	jr .p1keep
+.p1w2
+	pop af
+	jr .p1pend
+.p1keep
 	push hl
 	push af
 	ld hl, FW_RES
@@ -2482,6 +2552,12 @@ Fw_Remap:
 	ld a, d
 	jr .tset
 .t2
+	; この MOD：12タイルの 絵は 2つめの 表（$80〜）に おかない。歩きの コマは +$80 の タイルに 読まれるので、
+	; 2つめの 表では BG の タイル（$9000〜）に なって、つながりで 入った マップの 人が 歩くと 字の ように こわれた
+	; （1ばんどうろの フレンドリィショップの 店員、22ばんどうろの シゲル）。入らない ときは ぜんぶ 読む（並べなおす）
+	ld a, b
+	cp 12
+	jr z, .tfail
 	ld hl, FW_TAIL2
 	call Fw_Rd2
 	ld d, a
@@ -2501,6 +2577,21 @@ Fw_Remap:
 	and a                             ; 入る 所が ない（キャリーなし）
 	ret
 .take
+	; この MOD：あいた 組が 2つめの 表なら、12タイルの 絵は おかない（.t2 と 同じ）
+	push de
+	ld d, 0
+	ld hl, FW_O + 1
+	add hl, de
+	add hl, de
+	call Fw_Rd2
+	pop de
+	bit 7, a
+	jr z, .takeok
+	ld hl, FW_LENI
+	call Fw_Rd2
+	cp 12
+	jp z, .p2jnext
+.takeok
 	ld d, 0
 	ld hl, FW_USED
 	add hl, de

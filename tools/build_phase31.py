@@ -36,7 +36,10 @@ ENGINE_POKEDEX, ENGINE_BOULDER, ENGINE_EARTH = 0x0B, 0x23, 0x2A
 R22_HIDE, R22_FIRST, R22_SECOND = (P15.EXT_FLAGS[i] for i in (61, 63, 64))    # phase 17
 EV_FIRE, EV_WATER = 0x343, 0x344
 BLUE = P17.BLUE
-PARTY = {'r22a': {'grass': 13, 'fire': 11, 'water': 12}, 'r22b': {'grass': 19, 'fire': 17, 'water': 18}}  # phase 17
+# phase 17's parties (group BLUE: 14-16 lab, 17-19 Route 22 1st, 20-22 Cerulean, 23-25 Route 22 2nd; fire / water / grass
+# = the player's starter).  Before: 11-13 / 17-19 (the base mod's parties: Pidgeotto at the start, the 1st one at the 2nd)
+PARTY = {'r22a': {'fire': 17, 'water': 18, 'grass': 19}, 'r22b': {'fire': 23, 'water': 24, 'grass': 25}}
+PARTY_LEAD = {'r22a': (9, 16), 'r22b': (47, 18)}      # Red: Pidgey Lv9 / Pidgeot Lv47 first
 MUS_RIVAL, MUS_RIVAL_AFTER = P17.MUS_RIVAL, P17.MUS_RIVAL_AFTER
 RIVAL_AT = (25, 5)
 U, D, L, R_ = 0x0D, 0x0C, 0x0E, 0x0F
@@ -57,6 +60,11 @@ def main():
     f, n = bank_free_tail(rom, BANK); sp.set_area(BANK, f + 1 if f > BANK * 0x4000 else f, BANK * 0x4000 + 0x4000)
     log = []
     r22, vir = mapid('Route22'), mapid('ViridianCity')
+    import build_phase13 as P13
+    bg = P13.read_groups7e(rom)[P17.BLUE - 1]
+    for key, d in PARTY.items():
+        for st, i in d.items():
+            assert bg[i - 1][1][0] == 0 and tuple(bg[i - 1][1][1:3]) == PARTY_LEAD[key], (key, st, bg[i - 1][1].hex())
     TS = PM.Tilesets(rom, sp)
 
     def hl(mapid_, tid, **kw):

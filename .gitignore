@@ -1,8 +1,14 @@
+*.gb
+*.gbc
+*.map
+*.o
+*.sav
+*.st
+*.sym
 __pycache__/
+aka/
 build/
 crystal/
+obj/
 pkfc/
 ref/
-*.gbc
-*.gb
-aka/

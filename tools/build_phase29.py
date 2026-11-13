@@ -56,7 +56,10 @@ BT_TUTORIAL = 3
 W_MAP_GROUP, W_MAP_NUMBER, W_BATTLE_TYPE = 0xDC7B, 0xDC7C, 0xD261
 SPAWN_TABLE = P26.SPAWN_TABLE
 GAMBLER_ASLEEP_SPRITE = 0x13C50    # PKFC GamblerAsleepSprite (4 tiles)
-OAK_TALK = (0x62, 0x4DE6)          # Oak's object script in the lab: farsjump to the base mod's (1F:7FA0 -> 78:5D38)
+# Oak's object script in the lab (phase 17's events in bank $62): farsjump to the base mod's (1F:7FA0 -> 78:5D38)
+def oak_talk(lab):
+    r = lab.objs[0][1]; assert r[0] == 'far' and r[1] == 0x62, r
+    return r[1], r[2]
 OAK_BASE_POST, OAK_BASE_PRE = (0x78, 0x5D38), (0x78, 0x4462)
 BACKPIC = 0x3FC1C                  # 0F:7C1C  ld a,[wBattleType] / cp BATTLETYPE_TUTORIAL / jr z,.Decompress
 BACKPIC_STUB = (0x3FFB8, 0x3FFE0)  # 0F:7FB8-7FDF free (between phase 28's hook and its helper)
@@ -511,11 +514,19 @@ def main():
     texts = dict(T5)
     texts.update({k: riv(rt(RED_LAB, t)) for k, t in (('gramps', 21), ('what', 22), ('request', 23), ('invent', 24),
                                                        ('gotdex', 25), ('dream', 26), ('leave', 27))})
+    # this MOD: no Pokédex on the desk (Oak hands it over), and Shigeru's sister puts the map into the Pokégear
+    def swap(k, old, new):
+        o_, n_ = encode(old), encode(new); assert texts[k].count(o_) == 1, k; texts[k] = texts[k].replace(o_, n_)
+    swap('invent', 'つくえの　うえに　あるのは<LINE>わしが　つくった　<POKEMON>ずかん！',
+         'これが　わしの　つくった<LINE><POKEMON>ずかん　じゃ！')
+    swap('leave', 'ねえちゃん　から<LINE>タウンマップを　かりて　いこう！',
+         'ねえちゃんに<LINE>ポケギアに　マップを<CONT>いれて　もらおう！')
+    swap('leave', '<PLAYER>　には　かさない　ように', '<PLAYER>　には　いれない　ように')
     for k_, v in texts.items():
         assert k_ not in a.labels, k_
         a.label(k_); a.raw(v if v[-1] in (0x50, 0x57, 0x58) else P12.text(v))
     base = a.base; blob = a.done(); assert sp.put(BANK, blob) == base
-    p_ = fo(*OAK_TALK); assert rom[p_] == 0x04 and (rom[p_ + 1], r16(p_ + 2)) == (0x1F, 0x7FA0)
+    p_ = fo(*oak_talk(lab)); assert rom[p_] == 0x04 and (rom[p_ + 1], r16(p_ + 2)) == (0x1F, 0x7FA0)
     q_ = fo(0x1F, 0x7FA0); assert rom[q_] == 0x04 and (rom[q_ + 1], r16(q_ + 2)) == OAK_BASE_POST
     rom[p_ + 1] = BANK; w16(p_ + 2, a.labels['oak'])
     log.append('OaksLab: Oak (parcel / Pokédex) %X:%04X (%d bytes)' % (BANK, base, len(blob)))

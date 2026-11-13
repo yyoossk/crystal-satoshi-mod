@@ -32,6 +32,8 @@ ENGINE_POKEDEX, ENGINE_BOULDER, ENGINE_EARTH = 0x0B, 0x23, 0x2A
 HEAL_PARTY = 27
 MUS_RIVAL, MUS_RIVAL_AFTER = 0x1F, 0x20
 VAR_BATTLETYPE, BATTLETYPE_CANLOSE = 3, 1
+VAR_Y = 0x13
+W_FW_SLOT = 0xD833                 # the kit's follower slot (phase 64): $ff = no follower
 STRBUF = 0xD071                    # getmonname buffer 0
 D, U, L, R = 0x0C, 0x0D, 0x0E, 0x0F            # step movements
 TD, TU, TL, TR = 0x00, 0x01, 0x02, 0x03        # turn head
@@ -154,8 +156,14 @@ def main():
     a = Asm(sp.here(0x62)); a.bank = 0x62
     lab_picked, lab_done = FL.new(), FL.new()
     r22hide, cer_hide = FL.new(), FL.new()           # rivals elsewhere stay hidden from the lab battle on
-    RIVAL_POS = {'fire': (7, 5), 'water': (9, 4), 'grass': (6, 5)}
-    rv = me.add_object(SPR_BLUE, 9, 4, P12.FACE['LEFT'], 'lr_talk', flag=lab_done) + 1
+    # Red's places: the balls on the table (y = 3), Shigeru beside the player (Red: left of the player, who stands
+    # below Oak; Oak is at (4, 2) here), Shigeru's pick from below the table (y = 4)
+    BALL_X = {'fire': 6, 'water': 7, 'grass': 8}
+    for i_, st_ in ((1, 'fire'), (2, 'water'), (3, 'grass')):
+        o_ = me.objs[i_][0]; assert (o_[2] - 4, o_[1] - 4) == (BALL_X[st_], 4); o_[1] = 3 + 4
+    RIVAL_START = (3, 3)
+    RIVAL_POS = {st_: (BALL_X[RIVAL_TAKES[st_]], 4) for st_ in STARTERS}
+    rv = me.add_object(SPR_BLUE, *RIVAL_START, P12.FACE['DOWN'], 'lr_talk', flag=lab_done) + 1
     texts = {'lr_go': T(0x1CB4F), 'lr_strong': T(0x1CB81), 'lr_this': T(0x1D272),
              'lr_intro': T(0x1D2AE), 'lr_win': T(0x1D2E4), 'lr_lose': T(0x1D304), 'lr_after': T(0x1D321)}
     # "シゲルは　オーキドから<LINE>[mon]を　もらった！"
@@ -170,13 +178,14 @@ def main():
         a.label('lp_' + st)
         a.waitbutton(); a.closetext()
         a.checkevent(EV_HOF); a.iftrue('lp_end')
-        if st == 'grass':                       # the player stands in the way: step up to the empty spot
-            a.applymovement(0, 'mv_pup'); movs['mv_pup'] = [U]
-        if st == 'water':
-            a.turnobject(rv, TL)
-        else:
-            a.applymovement(rv, 'mv_pick_' + st)
-            x, y = RIVAL_POS[st]; movs['mv_pick_' + st] = [D] + [L] * (9 - x) + [TU]
+        # Red: below the table (the player there too) he goes round by the row below; otherwise straight along it
+        x, y = RIVAL_POS[st]; dx = x - RIVAL_START[0]
+        movs['mv_pick_' + st] = [D, D] + [R] * dx + [U]
+        movs['mv_pickb_' + st] = [D] + [R] * dx + [TU]
+        a.db(0x1C, VAR_Y); a.ifnotequal(4, 'lp_b_' + st)
+        a.applymovement(rv, 'mv_pick_' + st); a.sjump('lp_t_' + st)
+        a.label('lp_b_' + st); a.applymovement(rv, 'mv_pickb_' + st)
+        a.label('lp_t_' + st)
         a.opentext(); a.writetext('lr_this'); a.waitbutton()
         a.disappear(ball_obj); a.setevent(BALL_FLAG[tk])
         a.getmonname(SPECIES[tk]); a.writetext('lr_got'); a.playsound(0x0002); a.waitsfx(); a.waitbutton(); a.closetext()
@@ -199,7 +208,7 @@ def main():
         by_starter(a, L_ + 'm')
         for st in STARTERS:
             a.label(L_ + 'm_' + st); x, y = RIVAL_POS[st]
-            m = ([D] if y == 4 else []) + [L] * (x - xp) + [D]
+            m = [L] * (x - xp) + [D, D]
             movs['mv_%s_%s' % (L_, st)] = m
             a.applymovement(rv, 'mv_%s_%s' % (L_, st)); a.sjump(L_ + 'b')
         a.label(L_ + 'b'); a.turnobject(0, TU)
@@ -208,6 +217,7 @@ def main():
         a.opentext(); a.writetext('lr_after'); a.waitbutton(); a.closetext()
         movs['mv_out%d' % xp] = ([R] if xp == 4 else [L]) + [D] * 5
         a.applymovement(rv, 'mv_out%d' % xp); a.disappear(rv); a.setevent(lab_done)
+        a.loadmem(W_FW_SLOT, 0)                 # the follower comes out after he left (phase 30 hid it)
         a.setevent(r22hide); a.setevent(cer_hide); a.playmapmusic(); a.end()
     a.label('lb_end'); a.end()
     put_map(me, a, texts, movs)

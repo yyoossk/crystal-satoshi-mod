@@ -1,0 +1,10 @@
+import functools; print = functools.partial(print, flush=True)
+from mlib import *
+b=Bot(state=SC+'/play/j07.st', out=SC+'/play/run/j08')
+b.talk_to(5,2)
+for i in range(10): b.wait(40); b.ev()
+print(b.where(), b.objpos())
+r=b.travel((24,4)); print(r, b.where())
+for i in range(10): b.wait(40); b.ev()
+print(b.where(), b.objpos())
+b.g.save_state(SC+'/play/j08.st')

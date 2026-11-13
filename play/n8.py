@@ -1,0 +1,12 @@
+import sys; sys.path.insert(0,'play')
+from t64a import *
+make_test_rom(SC+'/build/p69.gbc')
+b=Bot(state=SC+'/play/n2.st', out=SC+'/run/n8')
+b.warp('BluesHouse',3,6); b.wait(60); b.clear_text()
+print(b.shot('blue'), b.objs_of())
+b.warp('RedsHouse1F',6,3); b.wait(60); b.clear_text()
+print(b.shot('red1f'))
+k=b.where()[0]; G=grid_of(b.db.r,b.db.maps[k]['hdr'])
+for row in G: print(' '.join('%02x'%c for c in row))
+k=b.ids['BluesHouse']; G=grid_of(b.db.r,b.db.maps[k]['hdr'])
+for row in G: print(' '.join('%02x'%c for c in row))

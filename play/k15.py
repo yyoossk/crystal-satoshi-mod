@@ -1,0 +1,10 @@
+import sys; sys.path.insert(0,'play'); from bot import *
+b=Bot(state=SC+'/play/k13b.st', out=SC+'/play/run/k15')
+b.ev(shots=False)
+b.warp('CeladonGameCorner',9,7); b.wait(60)
+b.talk_to(9,5)
+b.goto(9,5); b.face('U'); b.press('A',40); b.shot(); b.ev()
+r=b.travel((26,21)); print('B1F', r, b.where(), b.log[-3:])
+b.g.save_state(SC+'/play/k15a.st')
+r=b.travel((26,24)); print('B4F', r, b.where(), b.log[-3:])
+b.g.save_state(SC+'/play/k15.st')

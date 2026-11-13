@@ -1,0 +1,10 @@
+import sys; sys.path.insert(0,'.')
+from bot import *
+make_test_rom(sys.argv[1])
+b=Bot(sav=SC+'/play/p64nb.sav', out=SC+'/run/tbox3_'+sys.argv[2])
+b.wait(400)
+for i in range(3): b.press('A',60)
+for i in range(8): b.press("A",90)
+b.wait(120); b.g.shot(SC+'/run/tbox3a_%s.png'%sys.argv[2])
+b.script([0x2D, 25, 22, 0, 0], 120); b.g.shot(SC+'/run/tbox3b_%s.png'%sys.argv[2])
+b.bank1(); print(sys.argv[2], 'tod', b.peek(0xD29A), 'hour', b.peek(0xFF94))

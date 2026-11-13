@@ -64,5 +64,8 @@ python3 build_phase64.py ../build/p63.gbc ../build/p64.gbc ../build/p64.ips   # 
 python3 build_phase65.py ../build/p64.gbc ../build/p65.gbc ../build/p65.ips   # サファリゾーンで のこりの 歩数と ボールを いつも 表示（キットの SafariHUD を MOD の サファリに）
 python3 build_phase66.py ../build/p65.gbc ../build/p66.gbc ../build/p66.ips   # ムサシとコジロウの戦闘の絵を2色に（コジロウは青紫・ムサシは赤紫の髪。ピカチュウフルカラーと同じ）
 python3 build_phase67.py ../build/p66.gbc ../build/p67.gbc ../build/p67.ips   # $80 以降の バンクの スクリプトが サブスクリプトから 正しく もどる（連れ歩きに 話しかけた とき など）
-cp ../build/p67.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase68.py ../build/p67.gbc ../build/p68.gbc ../build/p68.ips   # オープニングと タイトルの 曲・効果音を 赤（日本版）の 音の しくみで（赤の バンク $1F を $9D に）
+python3 build_phase69.py ../build/p68.gbc ../build/p69.gbc ../build/p69.ips   # カントー（赤の マップ）の 段差を 赤と 同じに（手前から とびこえる・ほかの 向きは かべ）
+python3 build_phase70.py ../build/p69.gbc ../build/p70.gbc ../build/p70.ips   # 曲が 元に もどる・お母さんの 所へ 歩いて ポケギア・シゲルの ねえさんが ポケギアに タウンマップ
+cp ../build/p70.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"

@@ -672,6 +672,8 @@ PlayIntroScene:
 	ld [wOBP1], a
 	xor a
 	ldh [hSCX], a
+	ld [wNidoTile], a                  ; この MOD（phase68）：赤と 同じく 0 から（前は 前の 画面の のこりで 絵が ずれた）
+	call Frame                         ; この MOD（phase68）：色と SCX を 先に 出してから ゲンガーを 描く（前は 1コマ 灰色で 出た）
 	ld de, GengarTilemap1
 	call GengarTiles
 	ld a, 8

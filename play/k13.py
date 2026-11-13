@@ -1,0 +1,12 @@
+import sys; sys.path.insert(0,'play'); from bot import *
+b=Bot(state=SC+'/play/k12b.st', out=SC+'/play/run/k13')
+b.ev(shots=False)
+k=b.ids['VermilionCity']; print([w for w in b.db.warps(k) if w[3]==26])
+w=(18,30)
+b.warp(k, 18, 29); b.ev()
+r=b.travel((26,47)); print('captain room', r, b.where(), b.log[-4:])
+b.g.save_state(SC+'/play/k13.st')
+ob=b.objs_of(); print(ob)
+b.talk_to(ob[0][1],ob[0][2])
+print('HM01?', b.log[-3:])
+b.g.save_state(SC+'/play/k13b.st')

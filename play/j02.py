@@ -1,0 +1,11 @@
+import functools; print = functools.partial(print, flush=True)
+from mlib import *
+b=Bot(state=SC+'/play/j02.st', out=SC+'/play/run/j02')
+b.press('S',40); b.press('A',60); b.ev()
+for i in range(4): b.wait(40); b.ev()
+print(b.where(), b.objpos()); b.shot('a')
+b.g.save_state(SC+'/play/j02.st')
+r=b.travel((24,4)); print('town', r, b.where(), b.log[-2:])
+for i in range(6): b.wait(40); b.ev()
+print(b.where())
+b.g.save_state(SC+'/play/j02b.st')

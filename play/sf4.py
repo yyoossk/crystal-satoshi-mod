@@ -1,0 +1,11 @@
+import functools; print = functools.partial(print, flush=True)
+from mlib import *
+b=Bot(state=SC+'/play/sf3.st', out=SC+'/play/run/sf4')
+b.warp((26,66),11,17); b.wait(60); b.ev(shots=False)
+print(b.where(), b.boulders())
+print('a', solve(b,(9,14),(9,12)))
+print(b.push_to((9,14),(9,12)), b.log[-2:])
+print('b', solve(b,(8,14),(6,16)))
+print(b.push_to((8,14),(6,16)), b.log[-2:])
+b.wait(60); b.ev(shots=False); print(b.where(), b.boulders())
+b.g.save_state(SC+'/play/sf4.st')

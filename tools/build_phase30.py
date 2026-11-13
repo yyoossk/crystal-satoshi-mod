@@ -246,7 +246,7 @@ def main():
 
     # ================= Oak's lab: Red's arrival with Oak, Oak away before it, the balls, "don't go away yet"
     lab = MapEvents(rom, 'OaksLab')
-    assert lab.objs[0][0][0] == SPR_OAK and lab.objs[0][1] == ('far', 0x62, P29.OAK_TALK[1])
+    assert lab.objs[0][0][0] == SPR_OAK; oak_ref = P29.oak_talk(lab)
     lab.objs[0][0][11] = oak_away & 0xFF; lab.objs[0][0][12] = oak_away >> 8
     rv = [i for i, (o_, r) in enumerate(lab.objs) if o_[0] == P17.SPR_BLUE][0] + 2
     a = Asm(sp.here(BANK)); a.bank = BANK; texts = {}
@@ -270,7 +270,9 @@ def main():
     a.turnobject(2, TD); a.turnobject(0, TU); a.turnobject(rv, TU); a.playmapmusic()
     for k in ('fedup', 'choose', 'meto', 'patient'):
         a.opentext(); a.writetext(k); a.waitbutton(); a.closetext()
-    a.setevent(intro_done); a.end()
+    a.setevent(intro_done)
+    a.loadmem(P17.W_FW_SLOT, 0xFF)    # no follower until Shigeru left the lab (phase 17 sets it back to 0)
+    a.end()
     a.label('lmv'); a.db(*([U] * 8), 0x47)
     lab.scenes = ['lsc']
     # "don't go away yet" (Red: the row in front of the bookshelves)
@@ -295,7 +297,7 @@ def main():
     lab.install(a)
     log.append('OaksLab: events %X:%04X (%d bytes)' % (BANK, base, len(blob)))
     # phase 29's Oak script: no starter -> Red's line instead of the base mod's speech (faceplayer / opentext first)
-    p_ = fo(*P29.OAK_TALK); assert rom[p_] == 0x04 and rom[p_ + 1] == P29.BANK
+    p_ = fo(*oak_ref); assert rom[p_] == 0x04 and rom[p_ + 1] == P29.BANK
     s29 = fo(P29.BANK, r16(p_ + 2)); seg = bytes(rom[s29:s29 + 0x600])
     pre = seg.index(bytes([0x04, *P29.OAK_BASE_PRE[:1], P29.OAK_BASE_PRE[1] & 0xFF, P29.OAK_BASE_PRE[1] >> 8]))
     b2 = Asm(sp.here(BANK)); b2.bank = BANK

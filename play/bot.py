@@ -169,12 +169,13 @@ WALLS = {0xB0: 'R', 0xB1: 'L', 0xB2: 'U', 0xB3: 'D', 0xB4: 'DR', 0xB5: 'DL', 0xB
 OPPD = {'R': 'L', 'L': 'R', 'U': 'D', 'D': 'U'}
 def wall_block(G, x, y, nx, ny, d):
     return d in WALLS.get(G[y][x], '') or OPPD[d] in WALLS.get(G[ny][nx], '')
+class _Grid(list): red = False
 def grid_of(rom, h):
     if h in _GC: return _GC[h]
     a = _attrs(rom, h); ts = rom[h + 1]
     TS = _PM.Tilesets(rom, _Space(rom)); co = TS.coll_off(ts)
     w, hh = a['w'], a['h']; bo = a['blkbank'] * 0x4000 + a['blk'] - 0x4000
-    G = [[0] * (2 * w) for _ in range(2 * hh)]
+    G = _Grid([0] * (2 * w) for _ in range(2 * hh)); G.red = ts == 40   # phase 69: Red-map ledges work as in Red
     for by in range(hh):
         for bx in range(w):
             b = rom[bo + by * w + bx]
@@ -415,7 +416,13 @@ def _moves(G, x, y):
     """[(dir, dest)] from (x, y): hop tiles are walked on and jumped from (Crystal: the jump starts on the ledge tile)"""
     out = []; c = G[y][x]
     for (dx, dy), d in (((1, 0), 'R'), ((-1, 0), 'L'), ((0, 1), 'D'), ((0, -1), 'U')):
-        if HOPD.get(c) == (dx, dy):
+        if getattr(G, 'red', False):   # Red: jump the ledge in front from the tile before it; otherwise it is a wall
+            nx, ny = x + dx, y + dy
+            if 0 <= ny < len(G) and 0 <= nx < len(G[0]) and G[ny][nx] in HOPD:
+                if HOPD[G[ny][nx]] == (dx, dy) and _ok_cell(G, x + 2 * dx, y + 2 * dy) and G[y + 2 * dy][x + 2 * dx] not in HOPD:
+                    out.append((d, (x + 2 * dx, y + 2 * dy)))
+                continue
+        elif HOPD.get(c) == (dx, dy):
             if _ok_cell(G, x + 2 * dx, y + 2 * dy): out.append((d, (x + 2 * dx, y + 2 * dy)))
             continue
         nx, ny = x + dx, y + dy
