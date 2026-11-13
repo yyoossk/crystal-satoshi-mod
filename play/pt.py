@@ -4,7 +4,7 @@ from t64a import *
 from kt import sheet, uniq, seq
 import bot as _bot
 _bot.NOHEAL[0] = True
-ROM = 'p72'
+ROM = 'p73'
 make_test_rom(SC+'/build/%s.gbc' % ROM)
 ST = SC + '/play/pt_%s.st'
 def B(prev, tag):
@@ -48,3 +48,32 @@ def read_signs(b):
         for (dx, dy, d) in ((0, 1, 'U'), (0, -1, 'D'), (1, 0, 'L'), (-1, 0, 'R')):
             if b.goto(x + dx, y + dy):
                 b.face(d); b.press('A', 40); snap(b); ev(b, 20); break
+def lv(b): b.bank1(); return b.peek(0xDCA5 + 0x1F)[0]
+def hp(b):
+    b.bank1(); h = b.peek(0xDCA5 + 0x22, 4); return (h[0] << 8 | h[1]), (h[2] << 8 | h[3])
+def heal(b, pc=(23, 9), town='ViridianCity'):
+    b.travel(pc); b.wait(30)
+    b.goto(3, 3); b.face('U'); b.press('A', 40)
+    for i in range(30):
+        if b.textbox(): b.press('A', 40)
+        else: b.wait(20)
+    b.travel(town); b.wait(30)
+def grind(b, target, area='Route1', spot=(10, 3), pc=(23, 9), town='ViridianCity', maxsteps=4000):
+    n = 0
+    while lv(b) < target and n < maxsteps:
+        if b.where()[0] != b.ids[area] if isinstance(area, str) else b.where()[0] != area:
+            b.travel(area); b.wait(20)
+        b.goto(*spot)
+        for k in range(20):
+            b.step('L' if k % 2 else 'R'); n += 1
+            if b.in_battle():
+                b.battle()
+                for t in range(20):
+                    if b.textbox(): b.press('B' if (b.has('はい') and b.has('いいえ')) else 'A', 30)
+                    else: break
+                h, m = hp(b)
+                if h * 3 < m or b.where()[0] == pc: break
+        h, m = hp(b)
+        if h * 3 < m or b.where()[0] == pc:
+            heal(b, pc, town)
+        print('lv', lv(b), 'hp', hp(b), b.where(), flush=True)
