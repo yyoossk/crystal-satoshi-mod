@@ -133,7 +133,8 @@ def fast(b, wild=False):
 AVOID = tuple((20, i) for i in range(1, 8))
 def tour(b, target, visit=True, hops=60, skipmaps=()):
     """travel hop by hop; on each new map talk to everyone (trainers, people) and print what happened"""
-    seen = set(); target = b.mapk(target)
+    if not hasattr(b, 'seen'): b.seen = set()
+    seen = b.seen; target = b.mapk(target)
     for i in range(hops):
         k = b.where()[0]
         if visit and k not in seen and k not in skipmaps:
@@ -150,3 +151,28 @@ def tour(b, target, visit=True, hops=60, skipmaps=()):
         b.clear_text(shots=False)
         if b.where()[0] == k: print('stuck', b.where(), p[0], flush=True); ev(b, 30)
     return False
+def hms(b, cut=True, flash=False, surf=False, strength=False):
+    """field moves in the lead's slots 2-4 (HMs got in the playthrough), the bot may use them"""
+    import bot as _b
+    b.bank1(); o = 0xDCA5
+    if cut: b.g.poke(o + 5, 0x0F); _b.CAN_CUT[0] = True
+    if flash: b.g.poke(o + 4, 0x94)
+    if surf: b.g.poke(o + 3, 0x39); _b.CAN_SURF[0] = True
+    if strength: b.g.poke(o + 3 if not surf else o + 4, 0x46)
+def visit_town(b, town, skip=()):
+    """the town's people and signs, then every building whose door is in the town (people, back out)"""
+    town = b.mapk(town)
+    if b.where()[0] != town: b.travel(town); b.wait(20)
+    print('== town', town, b.where(), mus(b), flush=True)
+    talk_map(b); read_signs(b)
+    doors = []
+    for w in b.db.warps(town):
+        t = (w[3], w[4])
+        if t not in doors and t not in skip and t in b.db.maps and t not in AVOID: doors.append(t)
+    for t in doors:
+        if b.db.maps[t]['w'] > 12: continue          # routes / caves: not a building
+        b.travel(t); b.wait(20)
+        if b.where()[0] != t: print('  could not enter', t, flush=True); continue
+        print('== bldg', t, b.where(), mus(b), [(o[2]-4, o[1]-4, o[0]) for o in b.db.objs(t)], flush=True)
+        snap(b); talk_map(b); read_signs(b)
+        b.travel(town); b.wait(20)

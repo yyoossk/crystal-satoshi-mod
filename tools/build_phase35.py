@@ -48,7 +48,7 @@ POKE_FLUTE = 0x38                  # Crystal's unused item (its effect is the Po
 ITEMFINDER, EXP_SHARE = 0x37, 0x39
 SNORLAX, NIDORINO, NIDORINA = 143, 33, 30
 SFX_POKEFLUTE = 0x26
-EV_RESCUED_FUJI = 0x817            # phase 11: Jessie and James beaten on the tower's top floor
+EV_RESCUED_FUJI = 0x5E1            # phase 11: Jessie and James beaten on the tower's top floor (their hide flag; 0x817 was Mt. Moon's Jessie and James)
 BG_UP = 1                          # bg event read only when facing up (binoculars)
 
 
