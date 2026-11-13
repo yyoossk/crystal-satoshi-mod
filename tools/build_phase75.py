@@ -8,6 +8,11 @@ are Red's (sprite, movement, line), at Red's place or the nearest free floor til
    (02:40E7) now returns when the person already has an object struct.
  * Vermilion's passage to the dock: Crystal's teacher ("the fast ship sails on Wednesdays and Sundays") stands there
    only after the Hall of Fame (the S.S. Aqua's time); before it, as in Red, no one (objects callback, flag 521).
+ * Vermilion Gym: Red's trash-can locks (Crystal's room has no door and only trash).  The opening in front of Lt. Surge
+   (block 2,2) is closed by a wall block until the 2nd lock opens; the 15 cans work as Red's GymTrashScript (the 1st
+   switch in a random even can, chosen when entering (NEWMAP callback: not again after a battle); the 2nd in a random neighbour; a wrong can resets the locks and
+   moves the 1st switch); Red's lines.  Flags 522 (1st lock), 523 (2nd lock); the two can numbers in the byte of flags
+   0xA10-0xA17 ($DA43).
  * Mt. Moon 1F's item ball (Red: TM12 Water Gun) gives TM12 as the other Red TMs give the TM of the same number
    (phase 15 gave TM11, the same as Misty's).
 usage: build_phase75.py IN.gbc OUT.gbc OUT.ips
@@ -122,6 +127,74 @@ def main():
     base = a.base; blob = a.done(); assert sp.put(BANK, blob) == base
     me.install(a)
     log.append('VermilionPortPassage: teacher after the HoF (flag %X), events %X:%04X' % (t_hide, BANK, base))
+
+    # ================= Vermilion Gym: Red's trash cans
+    from mini_asm import MA
+    import redtexts as RT
+    EV1, EV2 = FL.new(), FL.new(); assert (EV1, EV2) == (0xA0A, 0xA0B)
+    BYTE = 0xDA43; HL_FLAGS = 0xDA42                 # EV1 = bit 2, EV2 = bit 3 of $DA42
+    RANDOM, SCRIPTVAR = 0x2F5E, 0xC2DD
+    SFX_PUSH_BUTTON, SFX_ENTER_DOOR = 0x11, 0x1F
+    G_WALL, G_FLOOR = 0x20, 0x01
+    me = MapEvents(rom, 'VermilionGym')
+    ga = attrs(rom, hdr_index('VermilionGym')); gbo = fo(ga['blkbank'], ga['blk'])
+    assert rom[gbo + 2 * ga['w'] + 2] == G_FLOOR and rom[gbo + 2 * ga['w'] + 0] == G_WALL
+    cans = sorted([(x, y) for y, x, t, r in me.bgs if 7 <= y <= 11])
+    assert cans == [(x, y) for x in (1, 3, 5, 7, 9) for y in (7, 9, 11)]
+    TABLE = [(2, 1, 3, 0, 0), (3, 0, 2, 4, 0), (2, 1, 5, 0, 0), (3, 0, 4, 6, 0), (4, 1, 3, 5, 7), (3, 2, 4, 8, 0),
+             (3, 3, 7, 9, 0), (4, 4, 6, 8, 10), (3, 5, 7, 11, 0), (3, 6, 10, 12, 0), (4, 7, 9, 11, 13),
+             (3, 8, 10, 14, 0), (2, 9, 13, 0, 0), (3, 10, 12, 14, 0), (2, 11, 13, 0, 0)]      # Red's GymTrashCans
+    BANK = 0x63; f_, n_ = bank_free_tail(rom, BANK); sp.set_area(BANK, f_ + 1, BANK * 0x4000 + 0x4000)
+    m = MA(sp.here(BANK))
+    m.label('trash')
+    m(0xFA, SCRIPTVAR & 0xFF, SCRIPTVAR >> 8, 0x4F)                       # ld a,[wScriptVar] / ld c,a
+    m(0x21, HL_FLAGS & 0xFF, HL_FLAGS >> 8)                                 # ld hl,flags
+    m(0xCB, 0x5E, 0x20, ('jr', 't_trash'))                                  # bit 3,[hl] / jr nz,trash
+    m(0xCB, 0x56, 0x20, ('jr', 't_second'))                                 # bit 2,[hl] / jr nz,second
+    m(0xFA, BYTE & 0xFF, BYTE >> 8, 0xE6, 0x0F, 0xB9, 0x20, ('jr', 't_trash'))
+    m(0xCB, 0xD6)                                                           # set 2,[hl]
+    m(0x21, ('a16', 'table'), 0x79, 0x87, 0x87, 0x81, 0x5F, 0x16, 0x00, 0x19)  # hl = table + c*5
+    m(0x2A, 0x47)                                                           # ld a,[hli] / ld b,a (count)
+    m.label('t_rnd'); m(0xCD, RANDOM & 0xFF, RANDOM >> 8, 0xE6, 0x03, 0xB8, 0x30, ('jr', 't_rnd'))
+    m(0x5F, 0x16, 0x00, 0x19, 0x7E)                                         # a = [hl + r]
+    m(0xCB, 0x37, 0x47, 0xFA, BYTE & 0xFF, BYTE >> 8, 0xE6, 0x0F, 0xB0, 0xEA, BYTE & 0xFF, BYTE >> 8)
+    m(0x3E, 1, 0x18, ('jr', 't_ret'))
+    m.label('t_second')
+    m(0xFA, BYTE & 0xFF, BYTE >> 8, 0xCB, 0x37, 0xE6, 0x0F, 0xB9, 0x28, ('jr', 't_open'))
+    m(0xCB, 0x96)                                                           # res 2,[hl]
+    m(0xCD, ('a16', 'init_rnd'), 0x3E, 2, 0x18, ('jr', 't_ret'))
+    m.label('t_open'); m(0xCB, 0xDE, 0x3E, 3, 0x18, ('jr', 't_ret'))
+    m.label('t_trash'); m(0xAF)
+    m.label('t_ret'); m(0xEA, SCRIPTVAR & 0xFF, SCRIPTVAR >> 8, 0xC9)
+    m.label('init')                                                         # entering: the 1st switch (Red: random & $e)
+    m(0x21, HL_FLAGS & 0xFF, HL_FLAGS >> 8, 0xCB, 0x56, 0xC0)
+    m.label('init_rnd')
+    m(0xCD, RANDOM & 0xFF, RANDOM >> 8, 0xE6, 0x0E, 0x47, 0xFA, BYTE & 0xFF, BYTE >> 8, 0xE6, 0xF0, 0xB0,
+      0xEA, BYTE & 0xFF, BYTE >> 8, 0xC9)
+    m.label('table')
+    for row in TABLE: m(*row)
+    code = m.done(); assert sp.put(BANK, code) == m.base
+    a = Asm(sp.here(BANK)); a.bank = BANK
+    for i, (x, y) in enumerate(cans):
+        idx = ((x - 1) // 2) * 3 + (y - 7) // 2; assert idx == i
+        a.label('can%d' % i); a.db(0x15, idx); a.sjump('can')
+    a.label('can'); a.callasm(BANK, m.L['trash'])
+    a.ifequal(1, 'c1'); a.ifequal(2, 'c2'); a.ifequal(3, 'c3'); a.jumptext('t_trash')
+    a.label('c1'); a.opentext(); a.writetext('t_1'); a.playsound(SFX_PUSH_BUTTON); a.waitsfx(); a.waitbutton(); a.closetext(); a.end()
+    a.label('c2'); a.jumptext('t_fail')
+    a.label('c3'); a.opentext(); a.writetext('t_3'); a.waitbutton(); a.closetext()
+    a.changeblock(4, 4, G_FLOOR); a.playsound(SFX_ENTER_DOOR); a.refreshmap(); a.waitsfx(); a.end()
+    a.label('g_cb'); a.checkevent(EV2); a.iftrue('g_cbo'); a.changeblock(4, 4, G_WALL)
+    a.label('g_cbo'); a.endcallback()
+    a.label('g_new'); a.callasm(BANK, m.L['init']); a.endcallback()      # entering (not after a battle)
+    for lab, adr in (('t_trash', 0x5FDCF), ('t_1', 0x5FEAF), ('t_3', 0x5FF4D), ('t_fail', 0x5FF8D)):
+        a.label(lab); a.raw(RT.raw(adr) + b'\x57')
+    me.bgs = [(y, x, t, ('can%d' % cans.index((x, y))) if (x, y) in cans else r_) for y, x, t, r_ in me.bgs]
+    me.callbacks += [(5, 'g_new'), (1, 'g_cb')]
+    me.write(a, sp)
+    base = a.base; blob = a.done(); assert sp.put(BANK, blob) == base
+    me.install(a)
+    log.append('VermilionGym: trash cans (flags %X %X, $%04X), code %X:%04X, events %X:%04X' % (EV1, EV2, BYTE, BANK, m.base, BANK, base))
 
     # ================= appear: no second copy
     CO = 0x80E7; assert rom[CO] == 0xCD and rom[CO + 3:CO + 5] == bytes([0xA7, 0xC0])
