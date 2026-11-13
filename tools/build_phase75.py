@@ -21,6 +21,9 @@ are Red's (sprite, movement, line), at Red's place or the nearest free floor til
  * Victory Road Gate: Crystal's black belt at (12, 5) stood in the way from Route 22 (hidden only after Crystal's Vermilion
    Snorlax, which this MOD's Kanto never sets: the road to the League was shut).  Kanto comes first here: he is hidden
    once the player has a starter (his hide flag = EV_GOT_STARTER).
+ * Red's <RIVAL> (0x53) left in two ported texts printed Crystal's Johto rival name ("？？？" before he is named): Lance's
+   "その トレーナーの なまえは…… <RIVAL>だ！" and the Victory Road guard's "そうだ！ <RIVAL>も ここを ぬけてったぜ！" ->
+   <GREEN> (0x39, the Kanto rival's name, phase 52).
  * Mt. Moon 1F's item ball (Red: TM12 Water Gun) gives TM12 as the other Red TMs give the TM of the same number
    (phase 15 gave TM11, the same as Misty's).
 Flags used: 521-524 (0xA09-0xA0C) and the byte of 528-535 (0xA10-0xA17); the next phase starts at 536.
@@ -250,6 +253,16 @@ def main():
     base = a.base; blob = a.done(); assert sp.put(BANK, blob) == base
     me.install(a)
     log.append('VictoryRoadGate: the right black belt hidden after the starter, events %X:%04X' % (BANK, base))
+
+    # ================= <RIVAL> left in Kanto texts -> <GREEN>
+    from jpchar import encode as _enc
+    for before, after in ((_enc('なまえは').rstrip(b'\x50') + bytes([0x56, 0x51]), _enc('だ！').rstrip(b'\x50')),
+                          (_enc('そうだ！　').rstrip(b'\x50'), _enc('も').rstrip(b'\x50') + bytes([0x4F]) + _enc('ここを').rstrip(b'\x50'))):
+        pat = before + bytes([0x53]) + after
+        hits = [i for i in range(0x40 * 0x4000, len(rom)) if rom[i:i + len(pat)] == pat]
+        assert len(hits) == 1, (pat.hex(), hits)
+        rom[hits[0] + len(before)] = 0x39
+        log.append('<RIVAL> -> <GREEN> at %X' % (hits[0] + len(before)))
 
     # ================= appear: no second copy
     CO = 0x80E7; assert rom[CO] == 0xCD and rom[CO + 3:CO + 5] == bytes([0xA7, 0xC0])

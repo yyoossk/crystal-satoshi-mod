@@ -89,8 +89,8 @@ def maxparty(b, move=DRAGONBREATH):
         b.g.pokes(o + 0x08, [0x13, 0x12, 0xD0])            # exp 1,250,000
         b.g.pokes(o + 0x17, [0xE0] * 4)                      # PP 32
         b.g.poke(o + 0x1F, 100); b.g.poke(o + 0x20, 0)
-        b.g.pokes(o + 0x22, [1, 0x5E, 1, 0x5E])               # HP 350/350
-        b.g.pokes(o + 0x26, [0, 250] * 5)
+        b.g.pokes(o + 0x22, [3, 0xE7, 3, 0xE7])               # HP 999/999
+        b.g.pokes(o + 0x26, [3, 0xE7] * 5)                    # stats 999
 def talk_map(b, skip=()):
     """talk to every person of the map's object table: walk near the start position, then talk to the nearest one"""
     k = b.where()[0]; got = []; SPIN = bool(spinners(b, k))
@@ -101,7 +101,7 @@ def talk_map(b, skip=()):
         for dx, dy in ((0, 2), (0, -2), (2, 0), (-2, 0), (0, 1), (1, 0), (-1, 0), (0, -1), (1, 1), (-1, -1), (0, 3), (3, 0)):
             if (x0 + dx, y0 + dy) in WT: continue
             if b.where()[0] != k: break
-            if (SPIN or b.path(x0 + dx, y0 + dy) is not None) and b.goto(x0 + dx, y0 + dy): break
+            if (SPIN or b.path(x0 + dx, y0 + dy) is not None) and b.goto(x0 + dx, y0 + dy, tries=8): break
         if b.where()[0] != k: print('  left the map', b.where(), flush=True); break
         ps = b.objpos()
         if not ps: print('  no one near', (x0, y0), flush=True); continue
@@ -129,14 +129,16 @@ def fast(b, wild=False):
             m = s.where()[0]
             if LIVE[0]: live_grid(s)
             if m not in SPC: SPC[m] = bool(spinners(s, m))
-            if SPC[m] and len(a) >= 2: return sgoto(s, a[0], a[1])
+            if SPC[m] and len(a) >= 2: return sgoto(s, a[0], a[1], tries=k.get('tries', 60))
             return og(s, *a, **k)
         _b.Bot.goto = gt
         ob = _b.Bot.battle
         def bt(s, *a, **k):
             r = ob(s, *a, **k)
             s.bank1(); n = s.peek(0xDC9D)[0]
-            for i in range(min(n, 6)): s.g.pokes(0xDCA5 + 0x30 * i + 0x17, [0xE0] * 4)    # PP back (the bot keeps one move)
+            for i in range(min(n, 6)):
+                s.g.pokes(0xDCA5 + 0x30 * i + 0x17, [0xE0] * 4)    # PP back (the bot keeps one move)
+                s.g.pokes(0xDCA5 + 0x30 * i + 0x20, [0, 0, 3, 0xE7])  # status, HP back
             return r
         _b.Bot.battle = bt
 AVOID = tuple((20, i) for i in range(1, 8))
