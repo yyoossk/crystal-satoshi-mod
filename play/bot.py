@@ -126,6 +126,8 @@ class Bot:
             if s.has('こうかが') or s.has('のこりポイント'): noeff = True
             if s.has('だしますか'):                        # a Pokémon fainted: the next one in the party
                 s.press('D', 20); s.press('A', 30); s.press('A', 30); k += 1; continue
+            if s.has('わすれさせますか'): s.press('B', 30); k += 1; continue      # learn a move: no
+            if s.has('あきらめますか'): s.press('A', 30); k += 1; continue       # give it up: yes
             if noeff and s.has('わざタイプ') and not s.has('のこりポイント'):
                 s.press('D', 20); noeff = False
             s.press('A', 30); k += 1
@@ -137,6 +139,7 @@ class Bot:
             s.wait(4)
         else:
             return k
+        if NOHEAL[0]: return k
         n = s.peek(0xDC9D)[0]
         for i in range(min(6, n) if n <= 6 else 0):
             o = 0xDCA5 + 0x30 * i
@@ -187,7 +190,7 @@ def _objpos(s):
     out = []
     for i in range(1, 13):
         b = s.peek(0xD4C9 + 0x28 * i, 0x14)
-        if b[0]: out.append((b[0x10] - 4, b[0x11] - 4))
+        if b[0] and b[0] != 0xE2: out.append((b[0x10] - 4, b[0x11] - 4))   # ($e2 = the follower: it does not block)
     return out
 Bot.objpos = _objpos
 
@@ -403,6 +406,7 @@ def _objs_of(s, k=None):
 Bot.objs_of = _objs_of
 
 BADGES = 0xD857
+NOHEAL = [False]           # True: battles leave the party as it is (playthrough checks)
 
 
 # ---------------- multi-map travel planner

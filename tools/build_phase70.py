@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Phase 70: the start of the journey as in Red (with this MOD's Pokégear):
- * Music: a script's playmusic now also clears wMapMusic, so the next playmapmusic (or the next map) brings the map's
-   music back.  Before, playmapmusic compared the map's music with wMapMusic (unchanged by playmusic) and did nothing:
-   the rival's theme went on in Oak's lab after the parcel (and after Shigeru left), on Route 22, ...
-   Hook: Script_playmusic ($25:$718D, xor a / ld [wMusicFade],a) -> call PlaymusicHook (bank $25 free tail).
+ * Music: playmapmusic after a script's playmusic brings the map's music back.  Before, playmapmusic compared the
+   map's music with wMapMusic (unchanged by playmusic) and did nothing: the rival's theme went on in Oak's lab after the
+   parcel (and after Shigeru left), on Route 22, ...  Hook: Script_playmapmusic ($25:$7183) -> bank $25 free tail:
+   when channel 1's music is not wMapMusic, wMapMusic is cleared before PlayMapMusic.
  * Red's house 1F: coming downstairs the first time, the player walks to Mom (she sits by the table watching TV) and
    she turns to him before she talks and gives the Pokégear (before, she gave it from across the room).
  * Shigeru's house (Red): his sister sits at the table with the town map on it.  Before the Pokédex: "Shigeru is at
@@ -40,6 +40,8 @@ RED_BLUES_HOUSE = 0x27
 D, U, L, R = 0x0C, 0x0D, 0x0E, 0x0F
 TR = 0x03
 SCRIPT_PLAYMUSIC = 0x7187          # bank $25
+SCRIPT_PLAYMAPMUSIC = 0x7183       # bank $25: call PlayMapMusic / ret
+W_CH1_MUSIC = 0xC101               # channel 1's music id
 W_EVENT_FLAGS = 0xDA65
 W_MAP_MUSIC, W_MUSIC_FADE = 0xC2C0, 0xC2A7
 
@@ -53,16 +55,19 @@ def main():
     FL = PM.Flags(FIRST_FLAG)
     log = []
 
-    # ================= playmusic clears wMapMusic
-    o = fo(0x25, SCRIPT_PLAYMUSIC)
-    assert rom[o:o + 13] == bytes([0x11, 0, 0, 0xCD, 0x24, 0x3B, 0xAF, 0xEA, W_MUSIC_FADE & 0xFF, W_MUSIC_FADE >> 8,
-                                   0xCD, 0x24, 0x3C]) or rom[o + 6:o + 10] == bytes([0xAF, 0xEA, 0xA7, 0xC2]), rom[o:o + 13].hex()
-    hf, hn = bank_free_tail(rom, 0x25); assert hn >= 10
+    # ================= playmapmusic after a script's playmusic brings the map's music back
+    # (Script_playmapmusic: call PlayMapMusic, which does nothing when wMapMusic is the map's music; playmusic does not
+    #  change wMapMusic.  Now: if the music playing (channel 1's id) is not wMapMusic, wMapMusic is cleared first.
+    #  wMapMusic is not touched otherwise: special RestartMapMusic plays it, so it must stay the map's music)
+    o = fo(0x25, SCRIPT_PLAYMAPMUSIC); assert rom[o:o + 4] == bytes([0xCD, 0x6C, 0x3C, 0xC9]), rom[o:o + 4].hex()
+    assert rom[fo(0x25, SCRIPT_PLAYMUSIC):fo(0x25, SCRIPT_PLAYMUSIC) + 3] == bytes([0x11, 0, 0])
+    hf, hn = bank_free_tail(rom, 0x25); assert hn >= 16
     hook = 0x4000 + (hf + 1) % 0x4000
-    hb = bytes([0xAF, 0xEA, W_MUSIC_FADE & 0xFF, W_MUSIC_FADE >> 8, 0xEA, W_MAP_MUSIC & 0xFF, W_MAP_MUSIC >> 8, 0xC9])
+    hb = bytes([0xFA, W_CH1_MUSIC & 0xFF, W_CH1_MUSIC >> 8, 0x21, W_MAP_MUSIC & 0xFF, W_MAP_MUSIC >> 8, 0xBE, 0x28, 0x02,
+                0xAF, 0x77, 0xC3, 0x6C, 0x3C])
     rom[fo(0x25, hook):fo(0x25, hook) + len(hb)] = hb
-    rom[o + 6:o + 10] = bytes([0xCD, hook & 0xFF, hook >> 8, 0x00])
-    log.append('Script_playmusic hook 25:%04X' % hook)
+    rom[o:o + 3] = bytes([0xC3, hook & 0xFF, hook >> 8])
+    log.append('Script_playmapmusic hook 25:%04X' % hook)
 
     # ================= Red's house 1F: walk to Mom first
     me = MapEvents(rom, 'RedsHouse1F')
