@@ -3,6 +3,9 @@
 the way to Cerulean Cape"...): like phase 73's Pokémon Centers, Crystal's rooms stay, the clerk stays, the other people
 are Red's (sprite, movement, line), at Red's place or the nearest free floor tile.
  * Pewter, Cerulean, Vermilion, Lavender, Saffron, Fuchsia (Viridian's and Cinnabar's are Red's rooms already).
+ * "appear" on a person who is already on the screen made a second copy of him (Crystal's CopyObjectStruct does not
+   check; the map's own loaders do): Cerulean's guard stood doubled after the backyard Rocket.  CopyObjectStruct
+   (02:40E7) now returns when the person already has an object struct.
  * Mt. Moon 1F's item ball (Red: TM12 Water Gun) gives TM12 as the other Red TMs give the TM of the same number
    (phase 15 gave TM11, the same as Misty's).
 usage: build_phase75.py IN.gbc OUT.gbc OUT.ips
@@ -99,6 +102,14 @@ def main():
     assert len(hit) == 1
     rom[hit[0]] = P12.tm_item(12)
     log.append('MtMoon1F: TM11 -> TM12 at %X' % hit[0])
+
+    # ================= appear: no second copy
+    CO = 0x80E7; assert rom[CO] == 0xCD and rom[CO + 3:CO + 5] == bytes([0xA7, 0xC0])
+    f, n = bank_free_tail(rom, 2); hk = f + 1; assert n >= 12
+    a_ = 0x4000 + hk - 0x8000
+    rom[hk:hk + 10] = bytes([0x0A, 0xFE, 0xFF, 0xC0]) + rom[CO:CO + 3] + bytes([0xC3, 0xEA, 0x40])   # ld a,[bc] / cp -1 / ret nz / call CheckObjectMask / jp $40EA
+    rom[CO:CO + 3] = bytes([0xC3, a_ & 0xFF, a_ >> 8])
+    log.append('CopyObjectStruct: no second copy (02:%04X)' % a_)
 
     fix_checksum(rom)
     open(outrom, 'wb').write(rom)

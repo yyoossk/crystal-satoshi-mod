@@ -18,6 +18,7 @@ def ev(b, n=80, yes=True):
     q = 0
     for i in range(n):
         if b.in_battle(): b.battle(); snap(b); q = 0; continue
+        if b.has('ニックネームは'): b.press('S', 30); b.press('A', 40); snap(b); q = 0; continue
         if b.textbox():
             if b.has('はい') and b.has('いいえ') and not yes: b.press('B', 40)
             else: b.press('A', 40)
