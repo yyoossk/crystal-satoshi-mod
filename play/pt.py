@@ -93,12 +93,12 @@ def maxparty(b, move=DRAGONBREATH):
         b.g.pokes(o + 0x26, [0, 250] * 5)
 def talk_map(b, skip=()):
     """talk to every person of the map's object table: walk near the start position, then talk to the nearest one"""
-    k = b.where()[0]; got = []
+    k = b.where()[0]; got = []; SPIN = bool(spinners(b, k))
     for o in b.db.objs(k):
         x0, y0 = o[2] - 4, o[1] - 4
         if (x0, y0) in skip: continue
         for dx, dy in ((0, 2), (0, -2), (2, 0), (-2, 0), (0, 1), (1, 0), (-1, 0), (0, -1), (1, 1), (-1, -1), (0, 3), (3, 0)):
-            if b.path(x0 + dx, y0 + dy) is not None and b.goto(x0 + dx, y0 + dy): break
+            if (SPIN or b.path(x0 + dx, y0 + dy) is not None) and b.goto(x0 + dx, y0 + dy): break
         ps = b.objpos()
         if not ps: print('  no one near', (x0, y0), flush=True); continue
         x, y = min(ps, key=lambda p: abs(p[0] - x0) + abs(p[1] - y0))
@@ -119,8 +119,12 @@ def fast(b, wild=False):
             return ot(s, *a, **k)
         _b.Bot.travel = tr; _b.Bot._fastwrap = True
         og = _b.Bot.goto
+        SPC = {}
         def gt(s, *a, **k):
             if getattr(s, 'norepel', False) is False and s.peek(0xFF70)[0] & 7 in (0, 1): s.g.poke(W_REPEL, 250)
+            m = s.where()[0]
+            if m not in SPC: SPC[m] = bool(spinners(s, m))
+            if SPC[m] and len(a) >= 2: return sgoto(s, a[0], a[1])
             return og(s, *a, **k)
         _b.Bot.goto = gt
         ob = _b.Bot.battle
@@ -176,3 +180,61 @@ def visit_town(b, town, skip=()):
         print('== bldg', t, b.where(), mus(b), [(o[2]-4, o[1]-4, o[0]) for o in b.db.objs(t)], flush=True)
         snap(b); talk_map(b); read_signs(b)
         b.travel(town); b.wait(20)
+MV = {0x18: (0, 1), 0x19: (0, -1), 0x1A: (-1, 0), 0x1B: (1, 0)}
+def spinners(b, k=None):
+    """coord events that push the player (Red's spinner arrows, ported as applymovement 0, slides): {(x, y): (x2, y2)}"""
+    k = k or b.where()[0]; m = b.db.maps[k]; r = b.db.r; out = {}
+    for off, c in m['ev']['coords']:
+        y, x = c[1], c[2]; a = m['scbank'] * 0x4000 + (c[4] | c[5] << 8) - 0x4000
+        if r[a] != 0x68 or r[a + 1] != 0: continue
+        q = m['scbank'] * 0x4000 + (r[a + 2] | r[a + 3] << 8) - 0x4000
+        xx, yy = x, y
+        while r[q] in MV: dx, dy = MV[r[q]]; xx += dx; yy += dy; q += 1
+        if r[q] == 0x47 and (xx, yy) != (x, y): out[(x, y)] = (xx, yy)
+    return out
+def sgoto(b, tx, ty, tries=60):
+    """goto that knows the spinner arrows"""
+    import bot as _b
+    from collections import deque
+    k = b.where()[0]; SP = spinners(b, k)
+    G = _b.grid_of(b.db.r, b.db.maps[k]['hdr'])
+    def ok(x, y): return 0 <= y < len(G) and 0 <= x < len(G[0]) and G[y][x] in _b.WALK
+    D = {'U': (0, -1), 'D': (0, 1), 'L': (-1, 0), 'R': (1, 0)}
+    bad = set()
+    for t in range(tries):
+        if b.textbox() or b.in_battle(): ev(b, 20)
+        k2, x, y = b.where()
+        if k2 != k: return False
+        if (x, y) == (tx, ty): return True
+        blk = set(b.objpos()) | bad | ({(w[0], w[1]) for w in b.db.warps(k)} - {(tx, ty)})
+        prev = {(x, y): None}; q = deque([(x, y)]); found = False
+        while q:
+            p = q.popleft()
+            if p == (tx, ty): found = True; break
+            for d, (dx, dy) in D.items():
+                n = (p[0] + dx, p[1] + dy)
+                if not ok(*n) or n in blk: continue
+                n2 = SP.get(n, n)
+                if n2 not in prev: prev[n2] = (p, d); q.append(n2)
+        if not found: return False
+        path = []; p = (tx, ty)
+        while prev[p]: p, d = prev[p][0], prev[p][1]; path.append((d, p))
+        path.reverse()
+        d, p = path[0]
+        b.step(d)
+        for i in range(30):
+            p0 = b.where(); b.wait(12)
+            if b.where() == p0: break
+        if b.where()[1:] == (x, y) and not b.textbox() and not b.in_battle():
+            dx, dy = D[d]; bad.add((x + dx, y + dy))
+    return b.where()[1:] == (tx, ty)
+def hop(b, target):
+    """go through a warp of this map that leads to target (spinner-aware)"""
+    k = b.where()[0]
+    for w in b.db.warps(k):
+        if (w[3], w[4]) == target:
+            if spinners(b, k): sgoto(b, w[0], w[1])
+            else: b.go_warp_xy(w[0], w[1])
+            b.wait(30); b.clear_text(shots=False)
+            if b.where()[0] == target: return True
+    print('  hop failed', k, '->', target, b.where(), flush=True); return False

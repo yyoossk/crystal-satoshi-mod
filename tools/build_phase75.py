@@ -15,6 +15,9 @@ are Red's (sprite, movement, line), at Red's place or the nearest free floor til
    0xA10-0xA17 ($DA43).
  * Celadon's Pokémon Center: Crystal's Eusine (kept by phase 73) stands there only after the Kanto Hall of Fame (the
    Johto story) and until the Ho-Oh, as in Crystal (flag 524; objects callback).
+ * Rocket Hideout B1F: the door to the elevator room opens right after its guard (Red: "the door opened in the
+   commotion") — the tiles callback ran before the trainer flag was set, so it stayed shut until the map was entered
+   again; the guard's after-battle script now opens it (changeblock, door sound, refresh).
  * Mt. Moon 1F's item ball (Red: TM12 Water Gun) gives TM12 as the other Red TMs give the TM of the same number
    (phase 15 gave TM11, the same as Misty's).
 Flags used: 521-524 (0xA09-0xA0C) and the byte of 528-535 (0xA10-0xA17); the next phase starts at 536.
@@ -156,6 +159,7 @@ def main():
     BYTE = 0xDA43; HL_FLAGS = 0xDA42                 # EV1 = bit 2, EV2 = bit 3 of $DA42
     RANDOM, SCRIPTVAR = 0x2F5E, 0xC2DD
     SFX_PUSH_BUTTON, SFX_ENTER_DOOR = 0x11, 0x1F
+    SFX_ENTER_DOOR_ = SFX_ENTER_DOOR
     G_WALL, G_FLOOR = 0x20, 0x01
     me = MapEvents(rom, 'VermilionGym')
     ga = attrs(rom, hdr_index('VermilionGym')); gbo = fo(ga['blkbank'], ga['blk'])
@@ -216,6 +220,21 @@ def main():
     base = a.base; blob = a.done(); assert sp.put(BANK, blob) == base
     me.install(a)
     log.append('VermilionGym: trash cans (flags %X %X, $%04X), code %X:%04X, events %X:%04X' % (EV1, EV2, BYTE, BANK, m.base, BANK, base))
+
+    # ================= Rocket Hideout B1F: the door opens right after its guard
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'play'))
+    from mapdb import DB as _DB
+    db_ = _DB(src_rom); m_ = db_.maps[(26, 21)]
+    gd = [o for o in db_.objs((26, 21)) if (o[2] - 4, o[1] - 4) == (28, 18)]; assert len(gd) == 1
+    hb_ = fo(m_['scbank'], gd[0][9] | gd[0][10] << 8); assert rom[hb_:hb_ + 2] == bytes([0xEA, 0x05])
+    x_old = rom[hb_ + 10] | rom[hb_ + 11] << 8
+    a2 = attrs(rom, m_['hdr']); bo2 = fo(a2['blkbank'], a2['blk']); blk_open = rom[bo2 + 8 * a2['w'] + 12]
+    f_, n_ = bank_free_tail(rom, m_['scbank']); sp.set_area(m_['scbank'], f_ + 1, m_['scbank'] * 0x4000 + 0x4000)
+    a = Asm(sp.here(m_['scbank'])); a.bank = m_['scbank']
+    a.changeblock(24, 16, blk_open); a.playsound(SFX_ENTER_DOOR_); a.refreshmap(); a.sjump(x_old)
+    base = a.base; blob = a.done(); assert sp.put(m_['scbank'], blob) == base
+    rom[hb_ + 10] = base & 0xFF; rom[hb_ + 11] = base >> 8
+    log.append('RocketHideoutB1F: the door opens after its guard (block %02X, %X:%04X)' % (blk_open, m_['scbank'], base))
 
     # ================= appear: no second copy
     CO = 0x80E7; assert rom[CO] == 0xCD and rom[CO + 3:CO + 5] == bytes([0xA7, 0xC0])
