@@ -79,5 +79,6 @@ python3 build_phase79.py ../build/p78.gbc ../build/p79.gbc ../build/p79.ips   # 
 python3 build_phase80.py ../build/p79.gbc ../build/p80.gbc ../build/p80.ips   # 殿堂入りの あと クチバの みなとの とおりみちの ワープが きえていた 不具合を なおす（第75弾の 影響）
 python3 build_phase81.py ../build/p80.gbc ../build/p81.gbc ../build/p81.ips   # はじめての ふねで まごむすめが もどったときの とうちゃくの ことばを ワカバタウンに
 python3 build_phase82.py ../build/p81.gbc ../build/p82.gbc ../build/p82.ips   # ロケットだんの ラジオとう せんきょなどは ジョウトの バッジの かずだけで きめる
-cp ../build/p82.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase83.py ../build/p82.gbc ../build/p83.gbc ../build/p83.ips   # カントーの チャンピオンの サトシに あわない ものがたりの ことばを なおす
+cp ../build/p83.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
