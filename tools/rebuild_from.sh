@@ -7,5 +7,5 @@ grep -E "^python3 build_phase[0-9]+\.py" build_all.sh | while read -r line; do
   k=$(echo "$line" | sed -E 's/^python3 build_phase([0-9]+)\.py.*/\1/')
   if [ "$k" -ge "$N" ]; then echo "== $k"; eval "${line%%#*}" > ../build/log_p$k.txt 2>&1 || { echo "FAIL $k"; tail -20 ../build/log_p$k.txt; exit 1; }; fi
 done
-cp ../build/p77.gbc "../build/クリスタル_サトシMOD.gbc"
+cp ../build/p78.gbc "../build/クリスタル_サトシMOD.gbc"
 echo DONE
