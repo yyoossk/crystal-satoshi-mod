@@ -8,6 +8,8 @@ place three years after Red / Green / Blue / Pikachu), and the lines fit a playe
  * Route 27: "your first step into Kanto" -> "your home Kanto is just ahead".
  * Blackthorn Gym trainer: "Lance said to meet you again? No way!" -> "as expected of the champion".
  * Vermilion Pokémon Fan Club (Kanto: Gen I only): the woman's Bayleef -> Oddish (the overworld sprite is Oddish's).
+ * The rival in Victory Road: "challenging the League now? You're weaker than me" -> "the champion is coming back
+   to the League? Don't get cocky".
  * Johto League (the same Indigo Plateau): Will became one of the Elite Four after Satoshi became champion; Koga
    ("long time no see") and Bruno ("I'll pay you back for my defeat") know him; Lance kept the champion's seat since
    Satoshi left the League and gives it back; the Hall of Fame: "the League champion has come back".
@@ -46,6 +48,9 @@ TEXTS = {
     (0x1E, 0x5191): 'えっ！　ワタルさまに<LINE>また　あおうって　いわれたのかい？<CONT>さすが　チャンピオン　だね！',
     (0x1D, 0x5D56): 'みて　みて！<LINE>わたしの　ナゾノクサ！<PARA>あたまの　はっぱが<LINE>すっごく　キュート！',
     (0x1D, 0x5D96): 'ナゾノクサ{72}くさー！',
+    (0x1F, 0x6FCD): 'まてよ<PARA><……>　チャンピオン　さまが<LINE>また　りーグに　もどるのか？<PARA><……>　いい　きに　なるなよ<LINE>'
+                    'いままでの　オレと　おもうなよ！<PARA>さいこう　さいきょうの<LINE><POKEMON>を　てにいれた！<CONT>'
+                    'オレには　だれも　かてないぜ！<PARA><PLAYER>！<LINE>オレと　しょうぶ　しろ！',
     (0x78, 0x5D5C): 'オーキド{72}おお　<PLAYER>！<LINE>りーグを　せいは　してから<CONT>もう　3ねんか<……><PARA>'
                     'じつは　ジョウトの<LINE>ワカバタウンに　いる<CONT>ウツギはかせから<CONT>れんらくが　あってな<PARA>'
                     'おまえに　ぜひ<LINE>あいたい　そうじゃ！<PARA>そこで<……>　これを　やろう！',
