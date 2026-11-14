@@ -75,5 +75,6 @@ python3 build_phase75.py ../build/p74.gbc ../build/p75.gbc ../build/p75.ips   # 
 python3 build_phase76.py ../build/p75.gbc ../build/p76.gbc ../build/p76.ips   # 怪力の 岩が 赤と 同じく 段差を こえて 動く（チャンピオンロード 3F）
 python3 build_phase77.py ../build/p76.gbc ../build/p77.gbc ../build/p77.ips   # 赤と 同じく 東の 岸（タイル $32）を なみのりで 進める（19・20ばんどうろ）
 python3 build_phase78.py ../build/p77.gbc ../build/p78.gbc ../build/p78.ips   # カントーでは 野生の ポケモンが にげださない（赤と 同じ。サンダーなど）
-cp ../build/p78.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase79.py ../build/p78.gbc ../build/p79.gbc ../build/p79.ips   # 赤の カウンター ごしに 話せる（ハナダの じてんしゃや・シオンタワー・シルフなど）
+cp ../build/p79.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
