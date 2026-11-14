@@ -77,5 +77,6 @@ python3 build_phase77.py ../build/p76.gbc ../build/p77.gbc ../build/p77.ips   # 
 python3 build_phase78.py ../build/p77.gbc ../build/p78.gbc ../build/p78.ips   # カントーでは 野生の ポケモンが にげださない（赤と 同じ。サンダーなど）
 python3 build_phase79.py ../build/p78.gbc ../build/p79.gbc ../build/p79.ips   # 赤の カウンター ごしに 話せる（ハナダの じてんしゃや・シオンタワー・シルフなど）
 python3 build_phase80.py ../build/p79.gbc ../build/p80.gbc ../build/p80.ips   # 殿堂入りの あと クチバの みなとの とおりみちの ワープが きえていた 不具合を なおす（第75弾の 影響）
-cp ../build/p80.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase81.py ../build/p80.gbc ../build/p81.gbc ../build/p81.ips   # はじめての ふねで まごむすめが もどったときの とうちゃくの ことばを ワカバタウンに
+cp ../build/p81.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
