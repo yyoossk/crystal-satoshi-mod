@@ -81,5 +81,6 @@ python3 build_phase81.py ../build/p80.gbc ../build/p81.gbc ../build/p81.ips   # 
 python3 build_phase82.py ../build/p81.gbc ../build/p82.gbc ../build/p82.ips   # ロケットだんの ラジオとう せんきょなどは ジョウトの バッジの かずだけで きめる
 python3 build_phase83.py ../build/p82.gbc ../build/p83.gbc ../build/p83.ips   # カントーの チャンピオンの サトシに あわない ものがたりの ことばを なおす
 python3 build_phase84.py ../build/p83.gbc ../build/p84.gbc ../build/p84.ips   # ジョウトの バッジ 8こで オーキドが シロガネやまを ひらく
-cp ../build/p84.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase85.py ../build/p84.gbc ../build/p85.gbc ../build/p85.ips   # こうそくせんの はじめての こうかいの あとしまつ（おじいさんの さわぎを くりかえさない）
+cp ../build/p85.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
