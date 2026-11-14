@@ -72,5 +72,7 @@ python3 build_phase72.py ../build/p71.gbc ../build/p72.gbc ../build/p72.ips   # 
 python3 build_phase73.py ../build/p72.gbc ../build/p73.gbc ../build/p73.ips   # カントーの ポケモンセンターの 人と ことばを 赤と 同じに
 python3 build_phase74.py ../build/p73.gbc ../build/p74.gbc ../build/p74.ips   # 負けた 戦いの あと 次の トレーナーで リセットされる 不具合を なおす
 python3 build_phase75.py ../build/p74.gbc ../build/p75.gbc ../build/p75.ips   # カントーの フレンドリィショップの 人と ことばを 赤と 同じに・おつきみやまの わざマシンを 12に
-cp ../build/p75.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase76.py ../build/p75.gbc ../build/p76.gbc ../build/p76.ips   # 怪力の 岩が 赤と 同じく 段差を こえて 動く（チャンピオンロード 3F）
+python3 build_phase77.py ../build/p76.gbc ../build/p77.gbc ../build/p77.ips   # 赤と 同じく 東の 岸（タイル $32）を なみのりで 進める（19・20ばんどうろ）
+cp ../build/p77.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
