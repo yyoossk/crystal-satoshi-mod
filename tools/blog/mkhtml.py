@@ -7,7 +7,7 @@ R = '/tmp/claude-0/-home-claude/e85f874c-51bd-5d2c-9b1a-1d2b8ebf1451/scratchpad/
 SC = '/tmp/claude-0/-home-claude/e85f874c-51bd-5d2c-9b1a-1d2b8ebf1451/scratchpad/'
 NAME = 'ポケットモンスター クリスタル カントー＆ジョウト'
 VER = '1.0.0'
-ROM = open(SC + 'build/p104.gbc', 'rb').read()
+ROM = open(SC + 'build/p109.gbc', 'rb').read()
 CRC = '%08X' % zlib.crc32(ROM); SHA = hashlib.sha1(ROM).hexdigest()
 REF = open(sys.argv[1], encoding='utf-8').read()
 
