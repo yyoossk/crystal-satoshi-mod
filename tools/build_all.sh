@@ -85,5 +85,11 @@ python3 build_phase85.py ../build/p84.gbc ../build/p85.gbc ../build/p85.ips   # 
 python3 build_phase86.py ../build/p85.gbc ../build/p86.gbc ../build/p86.ips   # ジョウトの でんどういりの あと リニアが うごく（ヤマブキの えき・モノマネむすめの ていきけん）
 python3 build_phase87.py ../build/p86.gbc ../build/p87.gbc ../build/p87.ips   # カントーの ジムりーダーの さいせんの ことば（3ねんご）・カツラの さいせん（ふたごじま）
 python3 build_phase88.py ../build/p87.gbc ../build/p88.gbc ../build/p88.ips   # 3ねんごの カントーの ジム（トキワは シゲルの ジム・ニビの あんないにん）
-cp ../build/p88.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase89.py ../build/p88.gbc ../build/p89.gbc ../build/p89.ips   # カントーの 町（クチバ・シオン・タマムシ・ヤマブキ）へ 建物から 出るのが 遅かった（人の 絵の 読みなおし）
+python3 build_phase90.py ../build/p89.gbc ../build/p90.gbc ../build/p90.ips   # 研究所の さいしょの バトルの あとの 連れ歩きが こわれた ピカチュウに なる 不具合
+python3 build_phase91.py ../build/p90.gbc ../build/p91.gbc ../build/p91.ips   # シゲル戦と 負けたときを 赤と 同じに（マサラタウンの 家の 前に もどる・負けたときの ことば）
+python3 build_phase92.py ../build/p91.gbc ../build/p92.gbc ../build/p92.ips   # カントーの 町・道路の 地名の 看板の 色を クリスタルと 同じに
+python3 build_phase93.py ../build/p92.gbc ../build/p93.gbc ../build/p93.ips   # ポケモンの 入った ボール（研究所・イーブイ・かくとう道場）と セキチクの ビリリダマの 見た目（ピカチュウフルカラー）
+python3 build_phase94.py ../build/p93.gbc ../build/p94.gbc ../build/p94.ips   # ボールを 選ぶ ときの ポケモンの 絵を カラーに
+cp ../build/p94.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
