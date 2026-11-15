@@ -2,8 +2,9 @@
 """Phase 87: the Kanto gym leaders' rematch lines three years later.
  After the Johto Hall of Fame each Kanto gym leader offers a rematch with Crystal's team (phase 50).  Their lines now
  fit the story (three years after the Kanto League): the leaders Satoshi beat (Brock, Misty, Lt. Surge, Erika,
- Sabrina, Blaine, Shigeru at Viridian) greet him after three years; Janine, Koga's daughter who now leads the Fuchsia
- Gym, has never met him and introduces herself.
+ Sabrina, Blaine) greet him after three years; Shigeru tells he became the Viridian Gym leader after losing to him as
+ the champion; Janine, Koga's daughter, meets him for the first time: her father joined the Elite Four after losing
+ to Satoshi, and she wants to beat the one who beat him.
  * Blaine: after the Kanto Hall of Fame he is in Crystal's Seafoam Gym, which had no rematch (phase 50 hooked Red's
    Cinnabar Gym): the same rematch there.
 usage: build_phase87.py IN.gbc OUT.gbc OUT.ips
@@ -25,14 +26,16 @@ NEW = {
              'ミーの　でんきも<LINE>パワーアップ　したぜ！<PARA>もういちど<LINE>バトル　するかい？', None, None),
     'エリカ': ('まあ　<PLAYER>さん<LINE>おひさしぶりですわ<PARA>ジョウトでも　ごかつやく<LINE>だそうですね<PARA>'
              'わたくしの　<POKEMON>も<LINE>たくましく　なりましたの<PARA>もういちど　しょうぶ<LINE>いたしませんか？', None, None),
-    'アンズ': ('あたいは　アンズ！<LINE>セキチクジムの　りーダーよ！<PARA>ちちうえの　キョウは<LINE>いま　してんのう　なの<PARA>'
-             'あたいの　しのびの　わざ<LINE>うけて　みる？', None, 'あんた　つよいね！<LINE>つぎは　まけないからね！'),
+    'アンズ': ('あなたが　<PLAYER>ね！<LINE>あたいは　アンズ！<PARA>ちちうえの　キョウは<LINE>あなたに　まけたあと<CONT>してんのうに　なったの<PARA>'
+             'いまは　あたいが<LINE>セキチクジムの　りーダーよ！<PARA>ちちうえを　たおした　あなたに<LINE>あたいは　かちたい！<PARA>'
+             'しょうぶ　してよ！', None, 'あんた　つよいね！<LINE>つぎは　まけないからね！'),
     'ナツメ': ('<PLAYER><……><LINE>3ねんぶり　ね<PARA>あなたが　また　くることは<LINE>わかっていたわ<PARA>'
              'もういちど<LINE>しょうぶ　しましょう', None, None),
     'カツラ': ('ウォーッ！　<PLAYER>か！<LINE>3ねんぶり　じゃのう！<PARA>しまの　かざんが　ふんかして<LINE>'
              'ジムは　ここに　うつったんじゃ<PARA>ジョウトでも　チャンピオンか！<LINE>わしの　ほのおも<CONT>'
              'まだまだ　もえて　おるぞ！<PARA>もういちど<LINE>しょうぶ　するか？', None, None),
-    'グリーン': ('よう　<PLAYER>！<LINE>3ねんぶり　だな！<PARA>ジョウトの　りーグも<LINE>せいは　したらしいな！<PARA>'
+    'グリーン': ('よう　<PLAYER>！<PARA>チャンピオンとして　おまえに<LINE>まけたあと<CONT>'
+              'おれは　ジムりーダーに　なった<PARA>あれから　3ねん<LINE>おれも　つよく　なったぜ<PARA>ジョウトの　りーグも<LINE>せいは　したらしいな！<PARA>'
               'あのときの　かりを<LINE>かえさせて　もらうぜ！<PARA>もういちど<LINE>しょうぶ　しようぜ！', None, None),
 }
 
