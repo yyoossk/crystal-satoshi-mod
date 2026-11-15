@@ -91,5 +91,6 @@ python3 build_phase91.py ../build/p90.gbc ../build/p91.gbc ../build/p91.ips   # 
 python3 build_phase92.py ../build/p91.gbc ../build/p92.gbc ../build/p92.ips   # カントーの 町・道路の 地名の 看板の 色を クリスタルと 同じに
 python3 build_phase93.py ../build/p92.gbc ../build/p93.gbc ../build/p93.ips   # ポケモンの 入った ボール（研究所・イーブイ・かくとう道場）と セキチクの ビリリダマの 見た目（ピカチュウフルカラー）
 python3 build_phase94.py ../build/p93.gbc ../build/p94.gbc ../build/p94.ips   # ボールを 選ぶ ときの ポケモンの 絵を カラーに
-cp ../build/p94.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase95.py ../build/p94.gbc ../build/p95.gbc ../build/p95.ips   # マップの つながり（マサラタウン ⇔ 1ばんどうろ など）で 止まる 不具合（人の 絵の 読みなおし）
+cp ../build/p95.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
