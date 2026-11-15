@@ -6,7 +6,27 @@ from PIL import Image
 R = '/tmp/claude-0/-home-claude/e85f874c-51bd-5d2c-9b1a-1d2b8ebf1451/scratchpad/run/'
 SC = '/tmp/claude-0/-home-claude/e85f874c-51bd-5d2c-9b1a-1d2b8ebf1451/scratchpad/'
 NAME = 'ポケットモンスター クリスタル カントー＆ジョウト'
-VER = '1.0.0'
+VER = '1.1.0'
+HISTORY = [   # 新しい 順（日付, 版, 内容の リスト）
+    ('2026/11/15', '1.1.0', ['カントーの町・道路も、朝・昼・夜で色が変わるようにしました',
+                             'シゲルが出てくるとき・去るときの曲を、赤と同じシゲルの曲にしました',
+                             'シゲルのフィールドの色を、赤フルカラーと同じにしました',
+                             'トキワのもり・ディグダのあな・ふたごじまの曲を、赤と同じにしました',
+                             'マップのつなぎめで一瞬止まるのを直しました。建物の出入りを速くしました',
+                             'ずかんの「ぶんぷ」を、いる地方の地図から出すようにしました。ぶんぷでSTARTを押すと固まるのを直しました',
+                             'ずかんの並びを、はじめから番号順にしました',
+                             'おつきみやまなどで地名の看板がちがうのと、洞くつでの看板の色を直しました',
+                             '手持ちで連れ歩きをやめると、持っていないピカチュウが出るのを直しました',
+                             'ムサシとコジロウが、戦いのあと急に消えないようにしました（ピカチュウ版と同じ）',
+                             'カントーのトレーナーが、勝ったあとに消えてしまうのを直しました',
+                             'ハナダのショップで、店員の前に人が立って買えないのを直しました',
+                             'マサキの家のイベントの動きを、ピカチュウ版と同じにしました',
+                             'ギャンブラーなどのトレーナーに見つかったとき、曲が鳴らないのを直しました',
+                             'サントアンヌごう：かんぱんから戻れない・階段で移動できないのを直しました。船が去るときの波とけむりを赤フルカラーと同じにしました',
+                             'クチバジムのマチスの前の扉を、赤と同じにしました',
+                             'ポケギアのタウンマップで↓を押し続けると、ジョウトの地名に入ってしまうのを直しました']),
+    ('2026/11/15', '1.0.0', ['初回リリース']),
+]
 ROM = open(SC + 'build/p109.gbc', 'rb').read()
 CRC = '%08X' % zlib.crc32(ROM); SHA = hashlib.sha1(ROM).hexdigest()
 REF = open(sys.argv[1], encoding='utf-8').read()
@@ -185,7 +205,10 @@ o.append('<div style="border:2px solid #c0392b;background:#fff3f0;border-radius:
 o.append(H2('更新履歴'))
 TD = 'padding:6px 8px;border:1px solid #8cc8e6;'
 o.append(f'<div style="overflow-x:auto;"><table style="border-collapse:collapse;margin:8px 0 12px;font-size:15px;"><tr><th style="{TD}background:#2b7bb9;color:#fff;">日付</th><th style="{TD}background:#2b7bb9;color:#fff;">内容</th></tr>'
-         f'<tr><td style="{TD}">2026/11/15</td><td style="{TD}">Ver.{VER}　初回リリース</td></tr></table></div>')
+         + ''.join(f'<tr><td style="{TD}white-space:nowrap;vertical-align:top;">{d}</td><td style="{TD}">Ver.{v}'
+                   + ('　' + items[0] if len(items) == 1 else '<ul style="margin:4px 0 0;padding-left:1.4em;">' + ''.join(f'<li>{x}</li>' for x in items) + '</ul>')
+                   + '</td></tr>' for d, v, items in HISTORY)
+         + '</table></div>')
 i = REF.index('>クレジット</h2>'); i = REF.rindex('<h2', 0, i)
 cred = REF[i:REF.rindex('</div>')]
 extra = ('<li>カントーのマップ・絵・セリフ・ムサシとコジロウ・151匹そろう版：ポケットモンスターピカチュウフルカラー</li>'
