@@ -95,6 +95,7 @@ DEF wFwBallT           EQU $dfbc     ; のこり フレーム
 DEF wFwHidden          EQU $dfbd     ; ボールに もどった（次に 出る ときは ボールから）
 DEF wFwLoadedFace      EQU $dfbe     ; 今の 色が 正面用（0）か 後ろ・横用（1）か
 DEF wFwMaskOK          EQU $dfbf     ; したじきの VRAM（バンク0 タイル $64〜$7b）を あけられた か
+DEF wFwLastColors      EQU $dfcc     ; この MOD：さいごに 使った 色1・色2（4バイト。WRAM バンク2 の $dfcc〜$dfcf。$dfc0〜$dfcb・$dfd0〜 は ほかの 機能）
 
 ; 種類の 番号（オブジェクト・マップオブジェクト）
 DEF OBJ_MAP_OBJECT_INDEX EQU $01
@@ -575,8 +576,12 @@ Fw_GetLead:
 	ld a, e
 	and a
 	jr z, .mon
-	call Fw_Index
-	ret c
+	; ボールの 絵は 連れ歩く ポケモンが いなくても かえす（手持ちで 連れ歩きを やめた あと、ボールに もどる アニメで
+	; Fw_Index が carry に なり、ボールの 絵が 読まれず アニメが おわらなかった）。この MOD：番地を かえない ため nop
+	nop
+	nop
+	nop
+	nop
 	ld de, 278                        ; ボール
 	ld a, FW_OWN_PAL
 	and a
@@ -688,7 +693,7 @@ Fw_OwnColors:
 	ld de, 31 | 7 << 5 | 1 << 10
 	ret
 .mon
-	call Fw_Species
+	call Fw_SpeciesOrLastColors       ; 連れ歩く ポケモンが いなければ さいごに 使った 色で もどる
 	cp FW_EGG
 	jr nz, .notegg
 	xor a                             ; タマゴ = 0
@@ -724,10 +729,10 @@ Fw_OwnColors:
 	ld b, a
 	call .byte
 	ld e, a
-	call .byte
-	ld d, a
 	; 夜・暗い 所でも 暗く しない（Crystal Crunch は 夜に 暗く するが、ユーザーの 希望で しない）
-	ret
+	jp Fw_LastByteAndKeep             ; さいごの 1バイト（d）を 読み、4バイトを wFwLastColors に のこす
+	nop
+	nop
 .byte
 	ld a, FW_POKEPALS_BANK
 	push hl
@@ -949,8 +954,10 @@ Fw_IndexToGfx:
 Fw_GetSprite:
 	call Fw_GetLead
 	jr nc, .ok
-	ld de, 24                         ; 手持ちが いない とき（ここには 来ない）：ピカチュウ
-	xor a
+	; 連れ歩く ポケモンが いない とき（手持ちで 連れ歩きを やめて メニューを とじた ときなど）：前に 読んだ 絵の まま
+	; （前は ピカチュウに して いたので、持って いない ピカチュウが 出た）
+	call Fw_NoLeadSprite
+	nop
 .ok
 	ld c, a
 	fw_wram2
@@ -2927,3 +2934,58 @@ Fw_CheckReload:
 
 INCLUDE "src/follow_talk.inc"
 INCLUDE "src/follow_data.inc"
+
+;---------------------------------------------------------------------
+; 連れ歩きを やめた あとの 直し（金で 見つかった 不具合。この MOD：もとの 所の 長さを かえない ため ここに）
+SECTION "follow fix", ROMX[$5da0], BANK[FW_BANK]   ; この MOD：「follow main」（$4000〜$5d96）の あと
+; Fw_OwnColors.mon から：連れ歩く ポケモンが いれば a = 種類（Fw_Species と 同じ）。いなければ（手持ちで やめた あと、
+; ボールに もどる まで）さいごに 使った 色1・色2 を bc・de に して、Fw_OwnColors の 呼び出し元へ もどる
+Fw_SpeciesOrLastColors:
+	call Fw_Species
+	ret nc
+	pop hl                            ; Fw_OwnColors の 中へは もどらない
+	fw_wram2
+	ld hl, wFwLastColors
+	ld a, [hli]
+	ld c, a
+	ld a, [hli]
+	ld b, a
+	ld a, [hli]
+	ld e, a
+	ld d, [hl]
+	fw_wram_back
+	ret
+
+; Fw_OwnColors の さいご：色2 の 上の バイトを 読んで d に。色1・色2 を wFwLastColors に のこす
+Fw_LastByteAndKeep:
+	call Fw_OwnColors.byte
+	ld d, a
+	fw_wram2
+	ld hl, wFwLastColors
+	ld a, c
+	ld [hli], a
+	ld a, b
+	ld [hli], a
+	ld a, e
+	ld [hli], a
+	ld [hl], d
+	fw_wram_back
+	ret
+
+; Fw_GetSprite で 連れ歩く ポケモンが いない とき：前に 読んだ 絵（wFwLoaded）と 色（wFwLoadedPal）。まだ 何も
+; 読んで いなければ ボール
+Fw_NoLeadSprite:
+	fw_wram2
+	ld a, [wFwLoaded]
+	ld e, a
+	ld a, [wFwLoaded + 1]
+	ld d, a
+	ld a, [wFwLoadedPal]
+	ld c, a
+	fw_wram_back
+	ld a, c
+	cp $ff
+	ret nz
+	ld de, 278                        ; ボール
+	ld a, FW_OWN_PAL
+	ret
