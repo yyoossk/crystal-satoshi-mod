@@ -93,5 +93,6 @@ python3 build_phase93.py ../build/p92.gbc ../build/p93.gbc ../build/p93.ips   # 
 python3 build_phase94.py ../build/p93.gbc ../build/p94.gbc ../build/p94.ips   # ボールを 選ぶ ときの ポケモンの 絵を カラーに
 python3 build_phase95.py ../build/p94.gbc ../build/p95.gbc ../build/p95.ips   # マップの つながり（マサラタウン ⇔ 1ばんどうろ など）で 止まる 不具合（人の 絵の 読みなおし）
 python3 build_phase96.py ../build/p95.gbc ../build/p96.gbc ../build/p96.ips   # 建物の 出入りを はやく（ドアの 暗く・明るく なる 時間を 半分に）
-cp ../build/p96.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase97.py ../build/p96.gbc ../build/p97.gbc ../build/p97.ips   # カントーの 町・道路も 朝・昼・夜で 色が かわる（クリスタルと 同じ）
+cp ../build/p97.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
