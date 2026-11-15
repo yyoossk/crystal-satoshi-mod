@@ -20,6 +20,7 @@ NEW_TILES = [0xAA, 0xAB, 0xAC, 0xAD]
 RED_DOOR = [0x20, 0x21, 0x30, 0x31]                 # Red's gym tiles (block $24)
 FLOOR_BLOCK, WALL_BLOCK, DOOR_BLOCK = 0x01, 0x20, 0x40
 PAL = 0x00                                          # the room's floor palette (gray)
+VBK1 = 0x08                                         # palette-map bit: the tile is in VRAM bank 1
 SCRIPT_BANK = 0x63
 
 
@@ -49,7 +50,7 @@ def main():
     po = fo(0x13, pa)
     for t in NEW_TILES:
         j = t // 2                                 # tiles $00-$5F: bytes $00-$2F; $60-$7F: $30-$3F; $80-$DF: $40-$6F
-        rom[po + j] = PAL << 4 | PAL
+        rom[po + j] = (VBK1 | PAL) << 4 | (VBK1 | PAL)
     # put the new data where there is room
     data = lz(bytes(gfx))
     need = len(data) + len(meta) + len(coll) + 16
