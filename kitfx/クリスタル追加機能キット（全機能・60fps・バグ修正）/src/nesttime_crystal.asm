@@ -11,7 +11,8 @@ DEF NT_AREA_BANK       EQU $24
 DEF NT_AREA            EQU $5e2b   ; Pokedex_GetArea
 DEF NT_LOOP_HOOK       EQU $5e88   ; .loop の call JoyTextDelay
 DEF NT_TITLE_HOOK      EQU $5f3c   ; .PlaceString_MonsNest の さいごの call PlaceString
-DEF NT_RIGHT           EQU $5ed1   ; .right（カントーを 見せる）
+DEF NT_RIGHT           EQU $5ed1   ; .right（カントーを 見せる）。この MOD：phase100 が .left・.right を 書きかえ、下の ld hl, NT_RIGHT の 番地も なおす
+DEF NT_LEFT            EQU $5ec0   ; .left（ジョウトを 見せる）
 DEF NT_AREA_FREE       EQU $6439   ; 使われていない EntireFlyMap の 場所
 DEF NT_JoyTextDelay    EQU $0a4d
 DEF NT_PlaceString     EQU $1057
@@ -117,13 +118,21 @@ NestTime_Title:
 SECTION "nesttime", ROMX[NT_ADDR], BANK[NT_BANK]
 ; キャリー：作りなおす
 NestTime_Input:
+	; この MOD：作りなおす 前に 見て いた 地方に もどす（1 カントー・2 ジョウト。作りなおすと はじめは
+	; 主人公の いる 地方に なる ので、ジョウトを 見て いた ときも もどす）
 	nt_load wNestKanto
 	and a
 	jr z, .input
+	push af
 	xor a
 	nt_store wNestKanto
-	ld a, NT_AREA_BANK                ; 前に カントーを 見て いた
-	ld hl, NT_RIGHT
+	pop af
+	dec a
+	ld hl, NT_RIGHT                   ; 前に カントーを 見て いた
+	jr z, .back
+	ld hl, NT_LEFT                    ; 前に ジョウトを 見て いた
+.back
+	ld a, NT_AREA_BANK
 	rst $08
 .input
 	ldh a, [NT_hJoyPressed]
@@ -135,10 +144,11 @@ NestTime_Input:
 	nt_store wNestTime
 	ldh a, [NT_hWY]
 	and a
-	jr nz, .johto
-	ld a, 1
+	ld a, 1                           ; カントー（hWY ＝ 0）
+	jr z, .region
+	inc a                             ; ジョウト
+.region
 	nt_store wNestKanto
-.johto
 	call NT_ClearSprites
 	scf
 	ret

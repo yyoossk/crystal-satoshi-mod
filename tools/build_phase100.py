@@ -3,6 +3,9 @@
  * Area map (ぶんぷ, Pokedex_GetArea 24:5E2B): Crystal always opened Johto's map and let the player switch to Kanto's
    only after the Hall of Fame.  Now it opens the map of the region the player is in, Kanto's can always be shown,
    and Johto's only once the player has arrived in Johto (EV_ARRIVED $34C).
+ * The kit's area time switch (START, nesttime: bank 96 NestTime_Input) rebuilds the screen and then calls .right
+   (24:5ED1, Crystal's) to show Kanto again: now .right is at the new place (a jump into the middle of the new .left
+   froze the game).
  * The list's default order is the number order (DEXMODE_OLD): set at a new game (wLastDexMode, after the gender part
    phase 52 replaced, 01:5B7E); the player's later choice is kept as before.
 usage: build_phase100.py IN.gbc OUT.gbc OUT.ips
@@ -40,6 +43,10 @@ def main():
     blk = left + right; assert LEFT + len(blk) <= RIGHT_END
     rom[at(LEFT):at(RIGHT_END)] = blk + bytes(RIGHT_END - LEFT - len(blk))
     rom[at(LRI) + 9] = right_at - (LRI + 10)
+    # the kit's nesttime (bank 96: ld hl, NT_RIGHT = $5ED1 / ... / ld hl, NT_LEFT = $5EC0 / ld a, $24 / rst FarCall)
+    nt = [m for m in range(fo(0x96, 0x5800), fo(0x96, 0x5900)) if rom[m:m + 3] == bytes.fromhex('21 d1 5e')]
+    assert len(nt) == 1 and rom[nt[0] + 3:nt[0] + 6] == bytes.fromhex('28 03 21'), nt
+    rom[nt[0] + 1:nt[0] + 3] = w(right_at)
     f, n = bank_free_tail(rom, B); f += 1; assert n >= 14
     ia = 0x4000 + f % 0x4000
     init = (b'\xfa' + w(W_PLAYERICONLANDMARK) + bytes([0xFE, KANTO_LANDMARK, 0xD2]) + w(kanto)
