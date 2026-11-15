@@ -101,5 +101,6 @@ python3 build_phase101.py ../build/p100.gbc ../build/p101.gbc ../build/p101.ips 
 python3 build_phase102.py ../build/p101.gbc ../build/p102.gbc ../build/p102.ips   # トキワのもり（と ディグダのあな・ふたごじま）の 曲を 赤と 同じに
 python3 build_phase103.py ../build/p102.gbc ../build/p103.gbc ../build/p103.ips   # ムサシとコジロウは 戦いの あと 暗く なって から いなく なる（ピカチュウ版と 同じ）
 python3 build_phase104.py ../build/p103.gbc ../build/p104.gbc ../build/p104.ips   # カントーの トレーナーは 勝っても 消えない・ハナダの ショップ・マサキの 家（ピカチュウ版と 同じ 動き）
-cp ../build/p104.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase105.py ../build/p104.gbc ../build/p105.gbc ../build/p105.ips   # 新しい トレーナーの 種類（ギャンブラー・でんきやのオヤジ など）に 見つかった ときの 曲
+cp ../build/p105.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
