@@ -5,6 +5,7 @@
  Sabrina, Blaine) greet him after three years; Shigeru tells he became the Viridian Gym leader after losing to him as
  the champion; Janine, Koga's daughter, meets him for the first time: her father joined the Elite Four after losing
  to Satoshi, and she wants to beat the one who beat him.
+ * The first rematch line once; afterwards each leader says a short "again?" line.
  * Blaine: after the Kanto Hall of Fame he is in Crystal's Seafoam Gym, which had no rematch (phase 50 hooked Red's
    Cinnabar Gym): the same rematch there.
 usage: build_phase87.py IN.gbc OUT.gbc OUT.ips
@@ -13,9 +14,21 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib import *
 from portlib import Space
+import portmaps as PM
 import build_phase50 as P50
 
 PB = P50.PB
+FIRST_FLAG = 524                   # 521-523: phase 75 -> 0xA0C-0xA13: "the first rematch line was said"
+AGAIN = {
+    'タケシ': 'また　きたな　<PLAYER>！<LINE>もういちど<CONT>しょうぶ　しないか？',
+    'カスミ': 'また　きてくれたのね！<LINE>きょうこそ　まけないわよ！<CONT>しょうぶ　しない？',
+    'マチス': 'ヘイ！　また　きたな！<LINE>もういちど<CONT>バトル　するかい？',
+    'エリカ': 'ようこそ　<PLAYER>さん<LINE>また　しょうぶ<CONT>いたしませんか？',
+    'アンズ': 'また　きたね！<LINE>こんどこそ　かってみせる！<CONT>しょうぶ　してよ！',
+    'ナツメ': 'また　きたのね<LINE>わかっていたわ<PARA>しょうぶ　しましょう',
+    'カツラ': 'ウォーッ！　また　きたか！<LINE>もういちど<CONT>しょうぶ　するか？',
+    'グリーン': 'よう　<PLAYER>！<LINE>きょうこそ　かってやるぜ！<CONT>しょうぶ　しようぜ！',
+}
 SEAFOAM_SITE, SEAFOAM_POST = (0x27, 0x7D4C), (0x27, 0x7D7A)   # Blaine: checkflag VOLCANOBADGE ; iftrue post
 NEW = {
     'タケシ': ('おお　<PLAYER>！<LINE>ひさしぶりだな！<PARA>3ねんぶりか<……><LINE>ジョウトの　りーグも<CONT>せいは　したそうだな！<PARA>'
@@ -46,33 +59,49 @@ def main():
     rom = bytearray(open(src_rom, 'rb').read())
     sp = Space(rom)
     f, n = bank_free_tail(rom, PB); sp.set_area(PB, f + 1, PB * 0x4000 + 0x4000)
-    B0 = PB * 0x4000; log = []
+    B0 = PB * 0x4000; log = []; FL = PM.Flags(FIRST_FLAG)
+    asks = {}
     for name, b, site, cls, opens, ask, lose, after in P50.LEADERS:
         for old_s, new_s, kind in ((ask, NEW[name][0], 'ask'), (after, NEW[name][2], 'after')):
             if new_s is None: continue
             old = P50.T(old_s); new = P50.T(new_s)
             seg = bytes(rom[B0:B0 + 0x4000]); i = seg.find(old); assert i >= 0 and seg.count(old) == 1, (name, kind)
             a = 0x4000 + i
-            if len(new) <= len(old):
+            if len(new) <= len(old) and kind != 'ask':
                 rom[B0 + i:B0 + i + len(new)] = new; log.append('%s %s in place' % (name, kind)); continue
             na = sp.put(PB, new); k = 0
+            if kind == 'ask': asks[name] = na
             for j in range(0x4000 - 2):
                 if seg[j] == 0x4C and seg[j + 1] == a & 0xFF and seg[j + 2] == a >> 8:
                     rom[B0 + j + 1] = na & 0xFF; rom[B0 + j + 2] = na >> 8; k += 1
             assert k == 1, (name, kind, k)
             log.append('%s %s -> %02X:%04X' % (name, kind, PB, na))
+    # the first rematch line once; afterwards a short "again?" line: writetext ask -> scall (flag check)
+    stubs = {}
+    for name in asks:
+        fl = FL.new(); a = Asm(sp.here(PB)); a.bank = PB
+        a.label('s'); a.checkevent(fl); a.iftrue('s2'); a.setevent(fl); a.writetext(asks[name]); a.end()
+        a.label('s2'); a.writetext('t'); a.end()
+        a.label('t'); a.raw(P50.T(AGAIN[name]))
+        base = a.base; assert sp.put(PB, a.done()) == base; stubs[name] = base
+        seg = bytes(rom[B0:B0 + 0x4000]); na = asks[name]; k = 0
+        for j in range(0x4000 - 3):
+            if seg[j] == 0x4C and seg[j + 1] == na & 0xFF and seg[j + 2] == na >> 8 and seg[j + 3] == 0x4E:
+                rom[B0 + j:B0 + j + 3] = bytes([0x00, base & 0xFF, base >> 8]); k += 1
+        assert k == 1, (name, k)
+        log.append('%s: first rematch line once (flag %X), then %02X:%04X' % (name, fl, PB, base))
     # Blaine after the Kanto Hall of Fame stands in Crystal's Seafoam Gym (phase 50 hooked Red's Cinnabar Gym only):
     # the same rematch there (phase 50's party and lines for him)
     o = fo(*SEAFOAM_SITE); assert rom[o:o + 6] == bytes([0x34, 0x29, 0x00, 0x09, SEAFOAM_POST[1] & 0xFF, SEAFOAM_POST[1] >> 8])
     seg = bytes(rom[B0:B0 + 0x4000]); i = seg.find(bytes([0x5D, 0x2E])); assert i > 0 and seg[i + 3:i + 5] == bytes([0x5E, 0x5F])
     idx = seg[i + 2]
     wl = seg[i - 4:i]; assert seg[i - 5] == 0x63                       # winlosstext win, 0
-    j = seg.rfind(bytes([0x4C]), 0, i - 5); ask = seg[j + 1:j + 3]; assert seg[j + 3] == 0x4E   # writetext ask ; yesorno
+    j = seg.rfind(bytes([0x00]), 0, i - 5); assert seg[j + 3] == 0x4E   # scall ask ; yesorno
     aft = seg[i + 7:i + 9]; assert seg[i + 6] == 0x4C
     a = Asm(sp.here(PB)); a.bank = PB
     a.label('sf'); a.db(0x34, 0x29, 0x00); a.iftrue('sfb'); a.farsjump(SEAFOAM_SITE[0], SEAFOAM_SITE[1] + 6)
     a.label('sfb'); a.checkevent(P50.EV_BEAT_E4); a.iffalse('sfp')
-    a.db(0x4C); a.raw(ask); a.yesorno(); a.iffalse('sfp'); a.closetext()
+    sb = stubs['カツラ']; a.db(0x00, sb & 0xFF, sb >> 8); a.yesorno(); a.iffalse('sfp'); a.closetext()
     a.db(0x63); a.raw(wl); a.loadtrainer(0x2E, idx); a.startbattle(); a.reloadmapafterbattle()
     a.opentext(); a.db(0x4C); a.raw(aft); a.waitbutton(); a.closetext(); a.end()
     a.label('sfp'); a.farsjump(*SEAFOAM_POST)
