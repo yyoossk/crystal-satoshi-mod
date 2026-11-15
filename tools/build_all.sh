@@ -98,5 +98,6 @@ python3 build_phase98.py ../build/p97.gbc ../build/p98.gbc ../build/p98.ips   # 
 python3 build_phase99.py ../build/p98.gbc ../build/p99.gbc ../build/p99.ips   # シゲルの フィールドの 絵の 色を 赤フルカラーと 同じ 青に
 python3 build_phase100.py ../build/p99.gbc ../build/p100.gbc ../build/p100.ips   # ずかんの ぶんぷは いる 地方の 地図から（ジョウトは 着いてから）・ずかんは さいしょ 番号順
 python3 build_phase101.py ../build/p100.gbc ../build/p101.gbc ../build/p101.ips   # おつきみやま などの 地名（看板）と 洞くつでの 看板の 色
-cp ../build/p101.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase102.py ../build/p101.gbc ../build/p102.gbc ../build/p102.ips   # トキワのもり（と ディグダのあな・ふたごじま）の 曲を 赤と 同じに
+cp ../build/p102.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
