@@ -95,5 +95,6 @@ python3 build_phase95.py ../build/p94.gbc ../build/p95.gbc ../build/p95.ips   # 
 python3 build_phase96.py ../build/p95.gbc ../build/p96.gbc ../build/p96.ips   # 建物の 出入りを はやく（ドアの 暗く・明るく なる 時間を 半分に）
 python3 build_phase97.py ../build/p96.gbc ../build/p97.gbc ../build/p97.ips   # カントーの 町・道路も 朝・昼・夜で 色が かわる（クリスタルと 同じ）
 python3 build_phase98.py ../build/p97.gbc ../build/p98.gbc ../build/p98.ips   # シゲルが 出てくる・去る ときの 曲を 赤の「ライバルあらわる」に（赤の 音の しくみ）
-cp ../build/p98.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase99.py ../build/p98.gbc ../build/p99.gbc ../build/p99.ips   # シゲルの フィールドの 絵の 色を 赤フルカラーと 同じ 青に
+cp ../build/p99.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
