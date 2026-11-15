@@ -97,5 +97,6 @@ python3 build_phase97.py ../build/p96.gbc ../build/p97.gbc ../build/p97.ips   # 
 python3 build_phase98.py ../build/p97.gbc ../build/p98.gbc ../build/p98.ips   # シゲルが 出てくる・去る ときの 曲を 赤の「ライバルあらわる」に（赤の 音の しくみ）
 python3 build_phase99.py ../build/p98.gbc ../build/p99.gbc ../build/p99.ips   # シゲルの フィールドの 絵の 色を 赤フルカラーと 同じ 青に
 python3 build_phase100.py ../build/p99.gbc ../build/p100.gbc ../build/p100.ips   # ずかんの ぶんぷは いる 地方の 地図から（ジョウトは 着いてから）・ずかんは さいしょ 番号順
-cp ../build/p100.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase101.py ../build/p100.gbc ../build/p101.gbc ../build/p101.ips   # おつきみやま などの 地名（看板）と 洞くつでの 看板の 色
+cp ../build/p101.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
