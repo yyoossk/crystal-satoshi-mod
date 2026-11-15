@@ -7,7 +7,7 @@ R = '/tmp/claude-0/-home-claude/e85f874c-51bd-5d2c-9b1a-1d2b8ebf1451/scratchpad/
 SC = '/tmp/claude-0/-home-claude/e85f874c-51bd-5d2c-9b1a-1d2b8ebf1451/scratchpad/'
 NAME = 'ポケットモンスター クリスタル カントー＆ジョウト'
 VER = '1.0.0'
-ROM = open(SC + 'build/p94.gbc', 'rb').read()
+ROM = open(SC + 'build/p99.gbc', 'rb').read()
 CRC = '%08X' % zlib.crc32(ROM); SHA = hashlib.sha1(ROM).hexdigest()
 REF = open(sys.argv[1], encoding='utf-8').read()
 
@@ -106,6 +106,8 @@ OS('カントーは初代ポケモンシリーズのストーリー',
    UL(['町・道路・ダンジョンは初代シリーズのマップです（トキワのもり・おつきみやま・サントアンヌ号・ロケット団のアジト・ポケモンタワー・シルフカンパニー・ふたごじま・ポケモンやしき・ハナダのどうくつ など）。',
        'ジムリーダー・トレーナー・四天王・チャンピオンも、初代シリーズと同じ手持ちとセリフです。',
        'ポケモンタワーでは、シルフスコープがないと「ゆうれい」が出てきます。',
+       'シゲルが出てくるときは、赤と同じシゲルの曲（ライバルあらわる）が流れます。',
+       'カントーの町や道路も、クリスタルと同じく朝・昼・夜で色が変わります。',
        'カントーで殿堂入りすると、初代シリーズの殿堂入りとスタッフロールが流れます。'])
    + IMG('blog/maps2/PewterCity.png', 'blog/maps2/CeruleanCity.png') + IMG('blog/maps2/CeladonCity.png', 'blog/maps2/LavenderTown.png'))
 OS('ムサシとコジロウ',
