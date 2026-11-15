@@ -18,6 +18,7 @@ import portmaps as PM
 import redmap as RM
 from evedit import MapEvents
 import build_phase15 as P15
+import akapalmap
 import build_phase17 as P17
 import build_phase25 as P25
 import build_phase27 as P27
@@ -89,7 +90,7 @@ def main():
 
     # ================= tilesets
     tss = {'Lobby': (LOBBY_TS, Tileset('Lobby', 18, 'lobby.bst', SC + '/out/pk_lobby.pkl')),
-           'Mansion': (mansion_ts, Tileset('Mansion', 19, 'mansion.bst', SC + '/out/pk_mansion.pkl')),
+           'Mansion': (mansion_ts, akapalmap.apply(Tileset('Mansion', 19, 'mansion.bst', SC + '/out/pk_mansion.pkl'), akapalmap.MANSION_DUMPS)),
            'House': (HOUSE_TS, Tileset('House', 8, 'house.bst', SC + '/out/pk_house.pkl'))}
     tk = {n: 'Lobby' for n in MART}; tk.update({n: 'Mansion' for n in MANSION}); tk['CeladonMansionRoofHouse'] = 'House'
     nmp = {}

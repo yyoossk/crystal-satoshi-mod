@@ -8,7 +8,9 @@ are Red's (sprite, movement, line), at Red's place or the nearest free floor til
    (02:40E7) now returns when the person already has an object struct.
  * Vermilion's passage to the dock: Crystal's teacher ("the fast ship sails on Wednesdays and Sundays") stands there
    only after the Hall of Fame (the S.S. Aqua's time); before it, as in Red, no one (objects callback, flag 521).
- * Vermilion Gym: Red's trash-can locks (Crystal's room has no door and only trash).  The opening in front of Lt. Surge
+ * Vermilion Gym: Red's trash-can locks (Red's lines start one byte after the addresses first used here: the byte
+   before them, 0F, is Crystal's sound_item text command and played the item fanfare on the 2nd lock and on a wrong
+   can; Red's sounds: the 1st lock SFX_SWITCH, the 2nd lock SFX_GO_INSIDE, a wrong can SFX_DENIED = Crystal's SFX_WRONG) (Crystal's room has no door and only trash).  The opening in front of Lt. Surge
    (block 2,2) is closed by a wall block until the 2nd lock opens; the 15 cans work as Red's GymTrashScript (the 1st
    switch in a random even can, chosen when entering (NEWMAP callback: not again after a battle); the 2nd in a random neighbour; a wrong can resets the locks and
    moves the 1st switch); Red's lines.  Flags 522 (1st lock), 523 (2nd lock); the two can numbers in the byte of flags
@@ -164,7 +166,7 @@ def main():
     EV1, EV2 = 0xA0A, 0xA0B
     BYTE = 0xDA43; HL_FLAGS = 0xDA42                 # EV1 = bit 2, EV2 = bit 3 of $DA42
     RANDOM, SCRIPTVAR = 0x2F5E, 0xC2DD
-    SFX_PUSH_BUTTON, SFX_ENTER_DOOR = 0x11, 0x1F
+    SFX_PUSH_BUTTON, SFX_ENTER_DOOR, SFX_WRONG = 0x11, 0x1F, 0x19     # Red: SFX_SWITCH, SFX_GO_INSIDE, SFX_DENIED
     SFX_ENTER_DOOR_ = SFX_ENTER_DOOR
     G_WALL, G_FLOOR = 0x20, 0x01
     me = MapEvents(rom, 'VermilionGym')
@@ -212,13 +214,13 @@ def main():
     a.label('can'); a.callasm(BANK, m.L['trash'])
     a.ifequal(1, 'c1'); a.ifequal(2, 'c2'); a.ifequal(3, 'c3'); a.jumptext('t_trash')
     a.label('c1'); a.opentext(); a.writetext('t_1'); a.playsound(SFX_PUSH_BUTTON); a.waitsfx(); a.waitbutton(); a.closetext(); a.end()
-    a.label('c2'); a.jumptext('t_fail')
-    a.label('c3'); a.opentext(); a.writetext('t_3'); a.waitbutton(); a.closetext()
-    a.changeblock(4, 4, G_FLOOR); a.playsound(SFX_ENTER_DOOR); a.refreshmap(); a.waitsfx(); a.end()
+    a.label('c2'); a.opentext(); a.writetext('t_fail'); a.playsound(SFX_WRONG); a.waitsfx(); a.waitbutton(); a.closetext(); a.end()
+    a.label('c3'); a.opentext(); a.writetext('t_3'); a.playsound(SFX_ENTER_DOOR); a.waitsfx(); a.waitbutton(); a.closetext()
+    a.changeblock(4, 4, G_FLOOR); a.refreshmap(); a.end()
     a.label('g_cb'); a.checkevent(EV2); a.iftrue('g_cbo'); a.changeblock(4, 4, G_WALL)
     a.label('g_cbo'); a.endcallback()
     a.label('g_new'); a.callasm(BANK, m.L['init']); a.endcallback()      # entering (not after a battle)
-    for lab, adr in (('t_trash', 0x5FDCF), ('t_1', 0x5FEAF), ('t_3', 0x5FF4D), ('t_fail', 0x5FF8D)):
+    for lab, adr in (('t_trash', 0x5FDCF), ('t_1', 0x5FEB0), ('t_3', 0x5FF4E), ('t_fail', 0x5FF8E)):
         a.label(lab); a.raw(RT.raw(adr) + b'\x57')
     me.bgs = [(y, x, t, ('can%d' % cans.index((x, y))) if (x, y) in cans else r_) for y, x, t, r_ in me.bgs]
     me.callbacks += [(5, 'g_new'), (1, 'g_cb')]

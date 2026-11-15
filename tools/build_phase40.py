@@ -98,6 +98,7 @@ def main():
     lts = Tileset('Lobby', 18, 'lobby.bst', SC + '/out/pk_lobby.pkl')
     pts = Tileset('Pokecenter', 2, 'pokecenter.bst', SC + '/out/pk_mart.pkl')
     mts = Tileset('Mansion', 19, 'mansion.bst', SC + '/out/pk_mansion.pkl')
+    import akapalmap; akapalmap.apply(mts, akapalmap.MANSION_DUMPS)   # (pk_mansion.pkl was taken in the Pokémon Mansion: Facility)
     nmp = {}
     for n, ts in (('CeladonDiner', lts), ('CeladonHotel', pts), ('CeladonChiefHouse', mts)):
         w_, h_ = RK.red_dims(n); nmp[n] = MapPort(n, ts, w_, h_, n + '.blk')
