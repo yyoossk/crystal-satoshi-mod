@@ -83,5 +83,6 @@ python3 build_phase83.py ../build/p82.gbc ../build/p83.gbc ../build/p83.ips   # 
 python3 build_phase84.py ../build/p83.gbc ../build/p84.gbc ../build/p84.ips   # ジョウトの バッジ 8こで オーキドが シロガネやまを ひらく
 python3 build_phase85.py ../build/p84.gbc ../build/p85.gbc ../build/p85.ips   # こうそくせんの はじめての こうかいの あとしまつ（おじいさんの さわぎを くりかえさない）
 python3 build_phase86.py ../build/p85.gbc ../build/p86.gbc ../build/p86.ips   # ジョウトの でんどういりの あと リニアが うごく（ヤマブキの えき・モノマネむすめの ていきけん）
-cp ../build/p86.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase87.py ../build/p86.gbc ../build/p87.gbc ../build/p87.ips   # カントーの ジムりーダーの さいせんの ことば（3ねんご）・カツラの さいせん（ふたごじま）
+cp ../build/p87.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
