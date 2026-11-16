@@ -1,9 +1,20 @@
 import sys; sys.path.insert(0,'play')
-from t64a import *
-from kt import sheet, uniq, seq
-make_test_rom(SC+'/build/p71.gbc')
-b=Bot(state=SC+'/play/vir_p70.st', out=SC+'/run/bike')
-b.bank1(); b.g.poke(0xD950,1)
-b.warp('Route1',10,20); b.wait(120); b.clear_text(); b.bank1(); b.g.poke(0xD950,1); b.warp('Route1',10,21); b.wait(120)
-fs=seq(b,'D',16,'d',4)+seq(b,'L',16,'l',4)+seq(b,'U',16,'u',4)
-sheet(fs, SC+'/run/bike.png', W=6, scale=2)
+from bot import *
+make_test_rom(SC+'/build/p110.gbc')
+b=Bot(state=SC+'/play/pt_s38.st', out=SC+'/run/bike'); b.wait(20)
+b.bank1(); print('bike?', b.peek(0xD950,1))
+b.giveitem(7,1)
+# use the bike from the bag: START -> bag
+b.press('S',40); b.shot('menu')
+b.press('D',15); b.press('D',15); b.press('A',60); b.shot('bag')
+b.press('R',30); b.press('R',30)
+for i in range(3): b.press('D',15)
+b.press('A',40); b.shot('sel'); b.press('A',60)
+for i in range(6):
+    if b.textbox(): b.press('A',40)
+b.wait(60); b.shot('onbike')
+b.bank1(); print('state', b.peek(0xD950,1))
+b.g.rec(SC+'/run/bike/v')
+for d in 'LLLLRRRRDDUU': b.step(d)
+b.g.stop(); b.shot('end')
+o=b.g.oam(); print(o[:16].hex())

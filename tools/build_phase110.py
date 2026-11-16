@@ -15,9 +15,22 @@
    kept from moving while the player's steps were queued, the queue ran past its 5 bytes into the player's object
    struct ($D4C9: map object index, sprite tile, movement) and the player was drawn with the follower's tiles.
    The append (01:54D7) now drops a step when the queue is full (code at 01:7EE0, a free gap).
- * Celadon Mansion: Red's stairs at the back ((2,1) on 1F-3F, (4,1) on 2F-3F) had carpet-down collisions: stepping on
-   them did nothing (only pressing down while on them warped).  They are $73 as the S.S. Anne's (phase 106): stepping on
-   them warps at once, as in Red.
+ * Red's warps that are entered by stepping onto them but were made carpet-down ($70: only pressing down while standing
+   on them warps; the cell below is a wall, so it looked like they did nothing): the Celadon Mansion's back stairs,
+   the stairs down to the Underground Path, the S.S. Anne's cabin doors / gangway, the Rocket Hideout's elevator
+   doors.  Every Red-map warp at $70 that is not on the bottom edge and has a wall below becomes $73 (as the S.S.
+   Anne's stairs, phase 106): stepping on it warps at once, as in Red; arriving on it does not.
+ * Riding the bike the player looked like the rival: phase 71 took the Red full-color hack's sprite-table entry 2
+   for the bike sprite, which is its rival's sprite.  Red's bike sprite (RedBikeSprite, akafc $05:$4000, 24 tiles in
+   Crystal's walking-sprite layout) now goes where phase 71 put the bike gfx.
+ * Trainer names: the Kanto trainers added from Red got names round-robin from one pool, so sailors, hikers and
+   the like could be called ユミ and lasses タカシ.  Every name from that pool is given again by the class's sex
+   (Red's female classes: LASS, JR_TRAINER_F, COOLTRAINER_F, BEAUTY, PICNICKER).
+ * NPC sprites that did not match Red's (the same kind of person drawn two ways): the hikers on Routes 9, 10 and 25
+   were the fishing guru (the other hikers are POKEFAN_M), Vermilion Gym's super nerd was a rocker, Fuchsia Gym's
+   jugglers (Red: ROCKER) were super nerds / gentlemen, the Game Corner's gentleman was the fishing guru, Celadon Gym's
+   cool trainers (Red: COOLTRAINER_F) were lasses, Route 20's beauties / jr. trainers (♀) were male swimmers while
+   Route 19's are swimmer girls.
 usage: build_phase110.py IN.gbc OUT.gbc OUT.ips
 """
 import sys, os
@@ -77,8 +90,16 @@ def main():
     rom[o:o + 15] = bytes([0xC3, NQ & 0xFF, NQ >> 8]) + bytes(12)
     log.append('follower queue: bounded (01:%04X)' % NQ)
 
-    # ================= Celadon Mansion back stairs
-    STAIRS = [((26, 133), (2, 1)), ((26, 134), (2, 1)), ((26, 134), (4, 1)), ((26, 135), (2, 1)), ((26, 135), (4, 1))]
+    # ================= step-on warps (Red)
+    from bot import grid_of, WALK
+    STAIRS = []
+    for k in sorted(db.maps):
+        if k[0] != 26 or k[1] < 21: continue
+        G = grid_of(rom, db.maps[k]['hdr'])
+        for w in db.warps(k):
+            x, y = w[0], w[1]
+            if y < len(G) - 1 and x < len(G[0]) and G[y][x] == 0x70 and G[y + 1][x] not in WALK:
+                STAIRS.append((k, (x, y)))
     TSO = PM.Tilesets(rom, Space(rom))
     def cell(k, x, y):
         mm = db.maps[k]; aa = attrs(rom, mm['hdr']); b2 = aa['blkbank'] * 0x4000 + aa['blk'] - 0x4000
@@ -87,7 +108,9 @@ def main():
     for k, (x, y) in STAIRS:
         assert (x, y) in [(w[0], w[1]) for w in db.warps(k)]
         targets.add(cell(k, x, y))
-    for blk, q, ts in targets:                         # every use of these block quadrants is a warp
+    conflicts = []
+    for blk, q, ts in sorted(targets):                 # every use of these block quadrants is a warp
+        bad = []
         for k2, m2 in db.maps.items():
             if rom[m2['hdr'] + 1] != ts: continue
             a2 = attrs(rom, m2['hdr']); b3 = a2['blkbank'] * 0x4000 + a2['blk'] - 0x4000
@@ -95,11 +118,59 @@ def main():
             for i in range(a2['w'] * a2['h']):
                 if rom[b3 + i] == blk:
                     xx, yy = (i % a2['w']) * 2 + q % 2, (i // a2['w']) * 2 + q // 2
-                    assert (xx, yy) in ws, (k2, xx, yy, hex(blk))
+                    if (xx, yy) not in ws: bad.append((k2, xx, yy))
+        if bad: conflicts.append((ts, blk, q, bad[:4])); continue
         c = TSO.coll_off(ts) + 4 * blk + q
         assert rom[c] == 0x70, hex(rom[c])
         rom[c] = 0x73
-        log.append('Celadon Mansion stairs: tileset %d block %02X quadrant %d -> $73' % (ts, blk, q))
+        log.append('step-on warp: tileset %d block %02X quadrant %d -> $73' % (ts, blk, q))
+    for c_ in conflicts: log.append('step-on warp NOT changed (block also used off warps): %s' % (c_,))
+
+    # ================= bike sprite: Red's
+    import build_phase71 as P71
+    aka = open(P71.AKAFC, 'rb').read()
+    t = fo(*P71.SPRITE_TABLE)
+    bo = fo(rom[t + 9], rom[t + 6] | rom[t + 7] << 8)
+    assert rom[t + 8] == 0xC0
+    bike = aka[0x14000:0x14180]
+    assert aka[0x14180:0x141A0] == aka[0x14180:0x141A0] and bike != rom[bo:bo + 0x180]
+    rom[bo:bo + 0x180] = bike
+    log.append('bike sprite: Red full color RedBikeSprite -> %X:%04X' % (rom[t + 9], rom[t + 6] | rom[t + 7] << 8))
+
+    # ================= trainer names by the class's sex
+    import build_phase13 as P13
+    from jpchar import encode
+    FEMALE_CLS = ('LASS', 'JR_TRAINER_F', 'COOLTRAINER_F', 'BEAUTY', 'PICNICKER')
+    MALE_NAMES = PM.NAMEPOOL[:10] + ['ツヨシ', 'ヒデキ', 'マサル', 'ケンジ', 'トオル', 'シンジ']
+    FEMALE_NAMES = PM.NAMEPOOL[10:] + ['ハルカ', 'ミホ', 'ユカ', 'アキコ', 'リサ', 'マイ', 'チカ', 'ノリコ', 'カオリ', 'メグミ']
+    pool = {bytes(encode(n + '@')) for n in PM.NAMEPOOL}
+    fem_ids = {PM.TCLS[c] for c in FEMALE_CLS}
+    groups = P13.read_groups7e(rom); nm = nf = 0; ch = 0
+    for i, grp in enumerate(groups):
+        for e in grp:
+            if bytes(e[0]) not in pool: continue
+            if i + 1 in fem_ids: new = FEMALE_NAMES[nf % len(FEMALE_NAMES)]; nf += 1
+            else: new = MALE_NAMES[nm % len(MALE_NAMES)]; nm += 1
+            nb = bytes(encode(new + '@'))
+            if nb != bytes(e[0]): ch += 1
+            e[0] = nb
+    log.append('trainer names by sex: %d changed (bank 7E free %d)' % (ch, P13.write_groups7e(rom, groups)))
+
+    # ================= NPC sprites as in Red
+    from lib import mapid
+    SPRFIX = [((7, 13), 0x3B, 0x2D), ((7, 14), 0x3B, 0x2D), ((7, 16), 0x3B, 0x2D),            # Routes 9, 10, 25
+              ((17, 8), 0x2B, 0x2C), ((17, 8), 0x40, 0x2C), ((21, 21), 0x28, 0x24)]           # Fuchsia, Celadon Gym
+    SPRPOS = [((12, 11), (3, 8), 0x2C, 0x2B), ((21, 19), (17, 13), 0x3B, 0x40)]            # Vermilion Gym, Game Corner
+    SPRPOS += [((6, 6), xy, 0x31, 0x32) for xy in ((68, 11), (45, 10), (55, 14), (25, 7), (24, 12), (15, 8))]   # Route 20's beauties / jr. trainers ♀: swimmer girl, as on Route 19
+    nfix = 0
+    for name, old, new in SPRFIX:
+        for off, ob in db.maps[name]['ev']['objs']:
+            if rom[off] == old: rom[off] = new; nfix += 1
+    for name, (x, y), old, new in SPRPOS:
+        hit = [off for off, ob in db.maps[name]['ev']['objs'] if (ob[2] - 4, ob[1] - 4) == (x, y)]
+        assert len(hit) == 1 and rom[hit[0]] == old, (name, hit)
+        rom[hit[0]] = new; nfix += 1
+    log.append('NPC sprites as in Red: %d objects' % nfix)
 
     # ================= poison step flash (Red's)
     PB = 0x32; o = fo(PB, 0x7C9D)
