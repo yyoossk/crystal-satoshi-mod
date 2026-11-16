@@ -41,11 +41,28 @@ def _hp(b, *a):
 H.heal_pc = _hp
 
 # --- a picture (the museum's fossils) closes with B, not A: close anything left open after the talk
+def menu_up(b):
+    """an info menu (a cursor in the upper half: the badge talk, shop / PC menus) - leave it with B"""
+    t = b.tilemap(); return any(c == 0xED for c in t[:7 * 20])
+_bev = _bot.Bot.ev
+def bev(s, n=120, quiet=3, shots=True, key='A'):
+    q = 0; k = 0
+    while k < min(n, 60):
+        if s.in_battle(): s.battle(); q = 0; continue
+        if s.textbox():
+            s.press('B' if menu_up(s) else key, 40); k += 1; q = 0
+        else:
+            q += 1
+            if q >= quiet: break
+            s.wait(50)
+    return k
+_bot.Bot.ev = bev
 def ev2(b, n=80, yes=True):
     """pt.ev, plus: a talk that keeps coming back to the same text/menu (an info menu) is left with B"""
     q = 0; seen = {}
     for i in range(n):
         if b.in_battle(): b.battle(); snap(b); q = 0; continue
+        if b.textbox() and menu_up(b): b.press('B', 30); b.press('B', 30); snap(b); continue
         t = bytes(b.tilemap()[12 * 20:])
         if b.textbox() or 0xED in t:
             seen[t] = seen.get(t, 0) + 1

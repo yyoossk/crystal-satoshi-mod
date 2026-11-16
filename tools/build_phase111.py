@@ -7,6 +7,8 @@
    warped at once.
    Now a Red warp whose tile is not walkable in Red, next to a walkable warp to the same map, is a wall again
    (its block quadrant's collision -> $07), as in Red.  Only quadrants used nowhere else are changed.
+ * Celadon City's warp at (39,19) (Red: "inaccessible", to the Dept. Store 5F) sat on a wall tile with a warp
+   collision: stepping up into the wall there took the player into the store's 5F.  A wall again.
 usage: build_phase111.py IN.gbc OUT.gbc OUT.ips
 """
 import sys, os
@@ -20,6 +22,7 @@ TSN = {37: 'Cavern', 33: 'Cemetery', 45: 'Club', 52: 'Dojo', 34: 'Facility', 49:
        44: 'House', 36: 'Interior', 42: 'Lab', 35: 'Lobby', 50: 'Mansion', 46: 'Museum', 40: 'Overworld', 43: 'Plateau',
        41: 'Pokecenter', 38: 'Ship', 39: 'ShipPort', 51: 'Underground'}     # this MOD's tileset ids of Red's tilesets
 WALL = 0x07
+INACCESSIBLE = {((21, 4), 39, 19)}             # Red's CeladonCity.asm: warp 39,19 ; inaccessible
 
 
 def main():
@@ -52,6 +55,8 @@ def main():
         for w in W:
             c = cell(k, w[0], w[1])
             if c is None or c['tile'] in pas or not (0x70 <= c['coll'] <= 0x7F): continue
+            if (k, w[0], w[1]) in INACCESSIBLE:
+                targets.setdefault((c['ts'], c['blk'], c['q']), []).append((k, w[0], w[1])); continue
             mate = [v for v in W if (v[3], v[4]) == (w[3], w[4]) and abs(v[0] - w[0]) + abs(v[1] - w[1]) == 1]
             mate = [v for v in mate if (cell(k, v[0], v[1]) or {}).get('tile') in pas]
             if not mate: log.append('kept (no walkable twin): %s %s' % (k, w[:2])); continue
