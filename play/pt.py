@@ -4,7 +4,7 @@ from t64a import *
 from kt import sheet, uniq, seq
 import bot as _bot
 _bot.NOHEAL[0] = True
-ROM = 'p75'
+ROM = 'p110'
 make_test_rom(SC+'/build/%s.gbc' % ROM)
 ST = SC + '/play/pt_%s.st'
 def B(prev, tag):
@@ -173,6 +173,7 @@ def hms(b, cut=True, flash=False, surf=False, strength=False):
     if flash: b.g.poke(o + 4, 0x94)
     if surf: b.g.poke(o + 3, 0x39); _b.CAN_SURF[0] = True
     if strength: b.g.poke(o + 3 if not surf else o + 4, 0x46)
+SKIPGYM = [False]
 def visit_town(b, town, skip=()):
     """the town's people and signs, then every building whose door is in the town (people, back out)"""
     town = b.mapk(town)
@@ -182,6 +183,7 @@ def visit_town(b, town, skip=()):
     doors = []
     for w in b.db.warps(town):
         t = (w[3], w[4])
+        if SKIPGYM[0] and (b.names.get(t) or '').endswith('Gym'): continue
         if t not in doors and t not in skip and t in b.db.maps and t not in AVOID: doors.append(t)
     for t in doors:
         if b.db.maps[t]['w'] > 12: continue          # routes / caves: not a building
@@ -248,6 +250,16 @@ def hop(b, target):
             b.wait(30); b.clear_text(shots=False)
             if b.where()[0] == target: return True
     print('  hop failed', k, '->', target, b.where(), flush=True); return False
+CARPET = [False]
+def carpet_fix(b, k, G):
+    """Red's Silph Co. floor tiles have collision $70 (carpet warp): without a warp there they are plain floor"""
+    ws = {(w[0], w[1]) for w in b.db.warps(k)}
+    for y, row in enumerate(G):
+        for x, c in enumerate(row):
+            if c == 0x70 and (x, y) not in ws: row[x] = 0
+    return G
+
+
 def live_grid(b):
     """the current map's collision from the blocks in RAM (doors opened / closed by scripts), into the bot's grid cache"""
     import bot as _b
@@ -262,6 +274,7 @@ def live_grid(b):
         for bx in range(w):
             blk = x[(by + 3) * (w + 6) + 3 + bx]
             for q in range(4): G[2 * by + q // 2][2 * bx + q % 2] = b.db.r[co + 4 * blk + q]
+    if CARPET[0]: carpet_fix(b, k, G)
     _b._GC[h] = G
     if hasattr(b, '_reach'): b._reach = {}
     return G
@@ -287,7 +300,7 @@ def open_doors(b):
             if done_: break
         print('  door', hex(fl), tiles[0], 'opened' if done_ else 'not reached', flush=True)
     live_grid(b)
-def safe_goto(b, tx, ty, block=(), tries=8):
+def safe_goto(b, tx, ty, block=(), tries=8, allow=()):
     """walk a path that never touches a warp tile (but the target) or the given tiles; replan when a step fails"""
     k = b.where()[0]
     for t in range(tries):
@@ -295,7 +308,10 @@ def safe_goto(b, tx, ty, block=(), tries=8):
         k2, x, y = b.where()
         if k2 != k: return False
         if (x, y) == (tx, ty): return True
-        av = ({(w[0], w[1]) for w in b.db.warps(k)} | set(block) | set(b.objpos())) - {(tx, ty), (x, y)}
+        import bot as _bw
+        Gw = _bw.grid_of(b.db.r, b.db.maps[k]['hdr'])
+        realw = {(w[0], w[1]) for w in b.db.warps(k) if 0 <= w[1] < len(Gw) and 0 <= w[0] < len(Gw[0]) and Gw[w[1]][w[0]] != 0}
+        av = (realw - set(allow) | set(block) | set(b.objpos())) - {(tx, ty), (x, y)}
         p = b.path(tx, ty, extra_block=av, ignore_objs=True)
         if p is None: return False
         for d in p:

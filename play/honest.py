@@ -58,6 +58,18 @@ def cursor(b, cells):
 MAIN = [(9, 14), (14, 14), (9, 16), (14, 16)]
 MOVEC = [(1, 10), (1, 12), (1, 14), (1, 16)]
 LOG = []
+LEARNC = [(11, 10), (11, 12), (11, 14), (11, 16)]
+def forget_weakest(s, moves):
+    """at 「ほかの わざを わすれさせますか？」 (the kit's learnno makes いいえ the default): はい, then the weakest move
+    (status moves first; HM moves are kept)"""
+    for i in range(30):
+        if cursor(s, [(15, 8), (15, 10)]) is not None: break
+        s.wait(6)
+    s.wait(10); s.press('U', 20); s.press('A', 60)
+    if cursor(s, LEARNC) is None: s.press('B', 30); return False
+    ws = min(range(4), key=lambda i: (moves[i] in HM_MOVE.values(), move(moves[i])['power'] if moves[i] else -1))
+    for k in range(ws): s.press('D', 15)
+    s.press('A', 50); return True
 def smart_battle(s, maxp=600):
     k = 0
     while s.in_battle() and k < maxp:
@@ -77,32 +89,52 @@ def smart_battle(s, maxp=600):
                 if mc2 == mc: break
                 mc = mc2
             s.g.press('A', 8, 40); continue
-        if s.has('わすれさせますか'): s.press('B', 30); continue          # TODO: weakest-move replacement
-        if s.has('あきらめますか'): s.press('A', 30); continue
+        if s.has('わすれさせますか'): forget_weakest(s, list(s.peek(BMON + 2, 4))); continue
+        if s.has('あきらめますか？'): s.press('A', 30); continue        # いいえ (the default): back to the question
+        if s.has('ほかの') or s.has('おぼえるのを'): s.wait(20); continue    # the question is still being printed
         if s.has('だしますか') or s.has('つかいますか'):
             s.press('A', 40); pick_party(s); continue
         s.press('A', 25)
         if k % 6 == 0: s.press('B', 15)
+    if k >= maxp:
+        import time as _t; n = 'stuck_%d' % int(_t.time()); s.g.save_state(SC + '/run/%s.st' % n); s.g.shot(SC + '/run/%s.png' % n)
+        t = s.tilemap(); print('BATTLE STUCK', n, flush=True)
+        for y in range(12, 18): print('   ', t[y * 20:y * 20 + 20].hex(' '), flush=True)
     s.wait(60)
     for t_ in range(30):
         if s.peek(0xFF70)[0] & 7 in (0, 1): break
         s.wait(4)
     return k
 
+def party_cursor(s):
+    t = s.tilemap()
+    for y in range(1, 13, 2):
+        if t[y * 20] in (0xED, 0xEC): return (y - 1) // 2
+    return None
 def pick_party(s):
-    """party menu after a faint: the healthiest Pokémon that can fight"""
+    """party menu after a faint: the healthiest Pokémon that can fight (the menu reads a key only now and then: hold it)"""
     s.wait(30); p = party(s)
     alive = [i for i, q in enumerate(p) if q['hp'] > 0]
     if not alive: return
     want = max(alive, key=lambda i: (p[i]['level'], p[i]['hp']))
-    for i in range(want): s.g.press('D', 4, 10)
-    s.g.press('A', 8, 40); s.g.press('A', 8, 40)
+    for k in range(12):
+        c = party_cursor(s)
+        if c == want: break
+        s.g.press('D' if c is None or c < want else 'U', 16, 20)
+    s.g.press('A', 16, 40)
+    for k in range(4):
+        if s.has('いれかえる') or s.has('つよさをみる'): s.g.press('A', 16, 40)
+        else: break
 
 _bot.Bot.battle = smart_battle
 _bot.NOHEAL[0] = True
 
+def lowpp(q):
+    return sum(pp for m, pp in zip(q['moves'], q['pp']) if m and move(m)['power'] > 1) < 5
 def hurt(b, frac=0.5):
-    p = party(b); return p[0]['hp'] < p[0]['maxhp'] * frac or any(q['hp'] == 0 for q in p[:1])
+    p = party(b)
+    if lowpp(p[0]): return True
+    return p[0]['hp'] < p[0]['maxhp'] * frac or any(q['hp'] == 0 for q in p[:1])
 
 def nearest_pc(b):
     best = None
@@ -122,19 +154,110 @@ def heal_pc(b, pc=None):
         else: b.wait(20)
     return back
 
-def grind(b, target, area, spot, maxbattles=400):
-    """train the lead in grass (area, spot) to `target`; heal at the nearest Pokémon Center when hurt"""
-    nb = 0
-    while party(b)[0]['level'] < target and nb < maxbattles:
+def reach_grass(b):
+    """walk to the nearest reachable pair of grass cells of the current map; returns the cell or None"""
+    k, x0, y0 = b.where(); G = grid_of(b.db.r, b.db.maps[k]['hdr'])
+    cs = [(x, y) for y in range(len(G)) for x in range(len(G[0]) - 1) if G[y][x] in (0x18, 0x14) and G[y][x + 1] in (0x18, 0x14)]
+    cs.sort(key=lambda c: abs(c[0] - x0) + abs(c[1] - y0))
+    for c in cs[:40]:
+        if b.path(*c) is None: continue
+        if b.goto(*c) and b.where()[0] == k: return c
+        if b.where()[0] != k: return None
+    return None
+def grind(b, target, area, spot=None, maxbattles=400):
+    """train the lead in the grass of `area` to `target`; heal at the nearest Pokémon Center when hurt"""
+    nb = 0; fails = 0
+    while party(b)[0]['level'] < target and nb < maxbattles and fails < 6:
         if b.where()[0] != area: b.travel(area); b.wait(20)
-        b.goto(*spot)
-        for k in range(30):
-            b.step('L' if k % 2 else 'R')
+        if b.where()[0] != area or reach_grass(b) is None:
+            fails += 1; print('grind: no grass reached', area, b.where(), flush=True); continue
+        steps = 0
+        for k in range(60):
+            b.step('L' if k % 2 else 'R'); steps += 1
             if b.in_battle():
                 b.battle(); nb += 1
                 for t in range(20):
                     if b.textbox(): b.press('B' if (b.has('はい') and b.has('いいえ')) else 'A', 30)
                     else: break
-                if hurt(b): break
+                if hurt(b) or b.where()[0] != area: break
         if hurt(b): heal_pc(b)
-    print('grind', party(b)[0]['level'], 'battles', nb, flush=True)
+    print('grind', party(b)[0]['level'], 'battles', nb, 'fails', fails, flush=True)
+    return fails < 6
+
+# ---------------------------------------------------------------- menus
+TMHM = 0xD84C                     # wTMsHMs (50 TMs, 7 HMs)
+HM_MOVE = {1: 0x0F, 2: 0x13, 3: 0x39, 4: 0x46, 5: 0x94, 6: 0x7F, 7: 0x91}   # Cut Fly Surf Strength Flash Whirlpool Waterfall
+def has_hm(b, n): b.bank1(); return b.peek(TMHM + 49 + n)[0] > 0
+def knows(b, move): return [i for i, q in enumerate(party(b)) if move in q['moves']]
+def close_menus(b):
+    for i in range(6):
+        b.press('B', 20)
+def _tm_pocket(t):
+    from jpchar import encode
+    hi = encode('ひ')[0]
+    for y in (3, 5, 7):
+        c = t[y * 20 + 6]
+        if 0xF6 <= c <= 0xFF or c == hi: return True
+    return False
+def open_bag_tm(b):
+    b.press('S', 40)
+    for i in range(10):
+        t = b.tilemap(); rows = [y for y in range(18) if t[y * 20 + 13] == 0xED]
+        if rows and rows[0] == 6: break
+        b.press('D', 15)
+    b.press('A', 60)
+    for i in range(6):
+        if _tm_pocket(b.tilemap()): break
+        b.press('R', 30)
+def teach(b, n, mon):
+    """HM n to party member `mon` from the bag (the weakest attacking move is forgotten when it knows four)"""
+    open_bag_tm(b)
+    for i in range(50): b.g.press('D', 4, 6)
+    b.wait(20)
+    above = sum(1 for m in range(n + 1, 8) if has_hm(b, m))
+    for i in range(above + 1): b.press('U', 20)
+    b.press('A', 40); b.press('A', 40)
+    for i in range(10):
+        if b.has('おしえますか'): break
+        b.press('A', 40)
+    for i in range(mon): b.g.press('D', 16, 20)
+    b.press('A', 50)
+    for i in range(30):
+        if b.has('わすれさせますか'): forget_weakest(b, party(b)[mon]['moves']); continue
+        if b.has('あきらめますか？'): b.press('A', 30); continue
+        if b.has('ほかの') or b.has('おぼえるのを'): b.wait(20); continue
+        if b.textbox(): b.press('A', 40)
+        else: break
+    close_menus(b)
+    ok = HM_MOVE[n] in party(b)[mon]['moves']
+    print('teach HM%02d to %d:' % (n, mon), ok, flush=True); return ok
+
+def honest_hms(b, cut=True, flash=False, surf=False, strength=False):
+    want = [(1, cut), (3, surf), (4, strength), (5, flash)]
+    for n, w in want:
+        if not w: continue
+        mv = HM_MOVE[n]
+        if not knows(b, mv):
+            assert has_hm(b, n), 'HM%02d not in the bag' % n
+            p = party(b)
+            order = list(range(1, len(p))) + [0]           # not the lead first (it keeps its attacks)
+            for mon in order:
+                if teach(b, n, mon): break
+        if n == 1: _bot.CAN_CUT[0] = True
+        if n == 3: _bot.CAN_SURF[0] = True
+
+# ---------------------------------------------------------------- levels
+def grass_spot(b, k):
+    G = grid_of(b.db.r, b.db.maps[k]['hdr'])
+    for y in range(len(G)):
+        for x in range(len(G[0]) - 1):
+            if G[y][x] in (0x18, 0x14) and G[y][x + 1] in (0x18, 0x14): return x, y
+    return None
+GRIND_BY_BADGES = ['Route22', 'Route3', 'Route24', 'Route11', 'Route7', 'Route15', 'Route15', 'Route21', 'Route23']
+def ensure(b, target, badges=0):
+    """train the lead to `target` in the grass of a route reachable with this many badges; heal when hurt"""
+    area = b.mapk(GRIND_BY_BADGES[min(badges, 8)])
+    while party(b)[0]['level'] < target:
+        if not grind(b, min(target, party(b)[0]['level'] + 3), area, maxbattles=60):
+            raise RuntimeError('cannot grind in %s' % (area,))
+    if hurt(b, 0.9): heal_pc(b)

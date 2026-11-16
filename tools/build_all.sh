@@ -107,5 +107,6 @@ python3 build_phase107.py ../build/p106.gbc ../build/p107.gbc ../build/p107.ips 
 python3 build_phase108.py ../build/p107.gbc ../build/p108.gbc ../build/p108.ips   # クチバジムの マチスの 前の 扉（赤と 同じ 2まいの 扉）
 python3 build_phase109.py ../build/p108.gbc ../build/p109.gbc ../build/p109.ips   # ポケギアの タウンマップ（カントーで 下を 押しても ジョウトの 地名に 行かない）
 python3 build_phase110.py ../build/p109.gbc ../build/p110.gbc ../build/p110.ips   # 2026/11/16 の 報告（ショップ・どく・マサキの 電話・連れ歩きの 列・ほか）
-cp ../build/p110.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase111.py ../build/p110.gbc ../build/p111.gbc ../build/p111.ips   # ゲートの 入口の 横の かべ
+cp ../build/p111.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
