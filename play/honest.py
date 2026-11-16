@@ -91,9 +91,11 @@ def smart_battle(s, maxp=600):
             s.g.press('A', 8, 40); continue
         if s.has('わすれさせますか'): forget_weakest(s, list(s.peek(BMON + 2, 4))); continue
         if s.has('あきらめますか？'): s.press('A', 30); continue        # いいえ (the default): back to the question
-        if s.has('ほかの') or s.has('おぼえるのを'): s.wait(20); continue    # the question is still being printed
-        if s.has('だしますか') or s.has('つかいますか'):
-            s.press('A', 40); pick_party(s); continue
+        if s.has('ほかの') or s.has('おほえるのを'): s.wait(20); continue    # the question is still being printed
+        if s.has('もうでています'): s.press('B', 30); s.press('B', 30); continue   # the shift question: keep the one out
+        if s.has('とりかえますか'): s.press('B', 40); continue              # shift after the foe's faint: no
+        if s.has('だしますか'): pick_party(s); continue                # the party menu is up
+        if s.has('つかいますか'): s.press('A', 40); pick_party(s); continue   # はい, then the party menu
         s.press('A', 25)
         if k % 6 == 0: s.press('B', 15)
     if k >= maxp:
@@ -127,6 +129,14 @@ def pick_party(s):
         else: break
 
 _bot.Bot.battle = smart_battle
+import unicodedata as _ud
+_has0 = _bot.Bot.has
+def _has(s, txt):
+    """the tilemap holds the base kana (the dakuten / handakuten sit on the line above): match without them"""
+    base = ''.join(c for c in _ud.normalize('NFD', txt) if c not in '\u3099\u309a')
+    base = _ud.normalize('NFC', base)
+    return _has0(s, base) or _has0(s, txt)
+_bot.Bot.has = _has
 _bot.NOHEAL[0] = True
 
 def lowpp(q):
@@ -220,18 +230,23 @@ def teach(b, n, mon):
     for i in range(10):
         if b.has('おしえますか'): break
         b.press('A', 40)
-    for i in range(mon): b.g.press('D', 16, 20)
+    for k in range(12):
+        c = party_cursor(b)
+        if c == mon: break
+        b.g.press('D' if c is None or c < mon else 'U', 6, 30)
     b.press('A', 50)
     for i in range(30):
         if b.has('わすれさせますか'): forget_weakest(b, party(b)[mon]['moves']); continue
         if b.has('あきらめますか？'): b.press('A', 30); continue
-        if b.has('ほかの') or b.has('おぼえるのを'): b.wait(20); continue
+        if b.has('ほかの') or b.has('おほえるのを'): b.wait(20); continue
         if b.textbox(): b.press('A', 40)
         else: break
     close_menus(b)
     ok = HM_MOVE[n] in party(b)[mon]['moves']
     print('teach HM%02d to %d:' % (n, mon), ok, flush=True); return ok
 
+def badges_ok_surf(b):
+    b.bank1(); return bin(b.peek(0xD84B)[0]).count('1') >= 5     # Soul Badge for Surf
 def honest_hms(b, cut=True, flash=False, surf=False, strength=False):
     want = [(1, cut), (3, surf), (4, strength), (5, flash)]
     for n, w in want:

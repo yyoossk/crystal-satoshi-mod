@@ -4,7 +4,7 @@ from t64a import *
 from kt import sheet, uniq, seq
 import bot as _bot
 _bot.NOHEAL[0] = True
-ROM = 'p111'
+ROM = 'p112'
 make_test_rom(SC+'/build/%s.gbc' % ROM)
 ST = SC + '/play/pt_%s.st'
 def B(prev, tag):
@@ -159,7 +159,10 @@ def tour(b, target, visit=True, hops=60, skipmaps=()):
         if not p: print('no plan', k, flush=True); return False
         k0, kind, arg, d = p[0]
         if kind == 'warp':
-            wx, wy = b.db.warps(k0)[arg][:2]; b.go_warp_xy(wx, wy)
+            W_ = b.db.warps(k0); wx, wy = W_[arg][:2]
+            if not b.go_warp_xy(wx, wy) and b.where()[0] == k0:
+                for v in W_:                       # a twin warp to the same map (one tile of a two-warp door is a wall)
+                    if (v[3], v[4]) == (W_[arg][3], W_[arg][4]) and v[:2] != (wx, wy) and b.go_warp_xy(v[0], v[1]): break
         else:
             b.cross({'N': 'U', 'S': 'D', 'W': 'L', 'E': 'R'}[arg])
         b.clear_text(shots=False)

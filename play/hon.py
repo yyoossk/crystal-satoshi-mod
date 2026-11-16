@@ -43,7 +43,9 @@ H.heal_pc = _hp
 # --- a picture (the museum's fossils) closes with B, not A: close anything left open after the talk
 def menu_up(b):
     """an info menu (a cursor in the upper half: the badge talk, shop / PC menus) - leave it with B"""
-    t = b.tilemap(); return any(c == 0xED for c in t[:7 * 20])
+    t = b.tilemap()
+    if b.has('かけますか') or b.has('コインが　たりません') or b.has('コインが たりません'): return True   # slot machines
+    return any(c == 0xED for c in t[:7 * 20])
 _bev = _bot.Bot.ev
 def bev(s, n=120, quiet=3, shots=True, key='A'):
     q = 0; k = 0
@@ -79,6 +81,25 @@ def ev2(b, n=80, yes=True):
     b.press('B', 20); b.press('B', 20)
 P.ev = ev2
 
+# --- heal before talking to a map's people (trainers) when the lead is hurt
+_tm = P.talk_map
+def talk_map2(b, *a, **k):
+    p = H.party(b)
+    if p and (p[0]['hp'] < p[0]['maxhp'] * 0.6 or H.lowpp(p[0])):
+        here = b.where()[0]; H.heal_pc(b); b.travel(here); b.wait(20)
+    return _tm(b, *a, **k)
+P.talk_map = talk_map2
+
+# --- goto that knows Red's spinner arrows (pt.fast used to install it; fast is a no-op here)
+_og = _bot.Bot.goto
+_SPC = {}
+def _gt(s, *a, **k):
+    m = s.where()[0]
+    if m not in _SPC: _SPC[m] = bool(P.spinners(s, m))
+    if _SPC[m] and len(a) >= 2: return P.sgoto(s, a[0], a[1], tries=k.get('tries', 60))
+    return _og(s, *a, **k)
+_bot.Bot.goto = _gt
+
 # --- the old helpers become honest
 P.maxparty = lambda b, *a, **k: None
 P.fast = lambda b, *a, **k: None
@@ -102,6 +123,8 @@ def run(name, prev):
     b = Bot(state=st, out=SC + '/run/h_' + name)
     b.tag = 'h_' + name; b.fs = []; b.seen = set()
     t0 = time.time(); print('#### stage', name, 'from', prev, b.where(), [(q['species'], q['level']) for q in H.party(b)], flush=True)
+    if H.has_hm(b, 1): H.honest_hms(b, cut=True)          # the bot may cut trees once a party member knows Cut
+    if H.has_hm(b, 3) and H.badges_ok_surf(b): H.honest_hms(b, cut=True, surf=True)
     f(b)
     b.g.save_state(HST % name)
     print('#### end', name, b.where(), mus(b), 'badges', badges(b), [(q['species'], q['level']) for q in H.party(b)],
@@ -197,6 +220,119 @@ def surge(b):
     solve_cans(b)
     talk_map(b); ev(b, 40)
     if badges(b) < 3: issue('no Thunder Badge')
+
+@stage
+def diglett(b):
+    train(b)
+    H.honest_hms(b, cut=True)
+    for t in ['Route11', 'DiglettsCave', 'Route2']:
+        r = tour(b, t, skipmaps=[(12, 11), (12, 3)]); print('->', t, r, b.where(), flush=True)
+    tour(b, (26, 81)); print('gate', b.where(), b.objpos(), flush=True)
+    b.goto(4, 1)
+    for i in range(2): b.step('U'); b.wait(20)
+    if b.where()[0] != (26, 81) or b.where()[2] == 0: issue('Route 2 gate: stepped into the wall beside the door', b.where())
+@stage
+def lavender(b):
+    train(b)
+    H.honest_hms(b, cut=True)
+    old = P.AVOID; P.AVOID = P.AVOID + ((18, 2), (26, 104), (26, 106), (25, 2), (26, 100), (26, 101), (26, 102), (26, 103))   # Route 12 (Snorlax), Saffron (guards): Rock Tunnel's way
+    r = tour(b, 'LavenderTown', skipmaps=[(12, 11), (12, 3)]); print('->', r, b.where(), flush=True)
+    if not r: issue('Lavender not reached', b.where())
+    visit_town(b, 'LavenderTown'); P.AVOID = old
+
+@stage
+def celadon(b):
+    train(b)
+    H.honest_hms(b, cut=True)
+    gates = [k for k in b.db.maps if k[0] == 26 and any((w[3], w[4]) == b.mapk('SaffronCity') for w in b.db.warps(k))]
+    old = P.AVOID; P.AVOID = P.AVOID + tuple(gates) + (b.mapk('SaffronCity'),)
+    r = tour(b, 'CeladonCity', skipmaps=[(12, 11), (12, 3)]); print('->', r, b.where(), flush=True)
+    visit_town(b, 'CeladonCity')
+    P.AVOID = old
+@stage
+def erika(b):
+    if badges(b) >= 4: return
+    train(b, 2); H.honest_hms(b, cut=True); H.heal_pc(b)
+    tour(b, 'CeladonGym'); talk_map(b); ev(b, 40)
+    if badges(b) < 4: issue('no Rainbow Badge')
+
+@stage
+def hideout(b):
+    if b.where()[0] not in [(26, i) for i in range(21, 26)]:        # (a resumed run already inside: the elevator)
+        train(b, 2); H.honest_hms(b, cut=True); H.heal_pc(b)
+        tour(b, (21, 19)); talk_map(b); read_signs(b); ev(b, 20)   # the poster's switch opens the stairs
+        if not tour(b, (26, 21)): issue('hideout stairs not reached (poster switch?)', b.where()); return
+        tour(b, (26, 24))                                          # B2F, B3F (spin floors), B4F west: the Lift Key
+        print('b4f', b.where(), b.objpos(), flush=True)
+    # the elevator: from B2F (B1F's elevator room is closed by a door until its Rocket is beaten from inside, as in Red)
+    tour(b, (26, 22), visit=False)
+    for wx in (24, 25):
+        if b.where()[0] == (26, 22): b.go_warp_xy(wx, 19); b.wait(30)
+    print('lift', b.where(), flush=True)
+    if b.where()[0] != (26, 25): issue('elevator not reached from B2F', b.where()); return
+    lift(b, 'ちか4かい', 6)                                       # menu rows: B1F 2, B2F 4, B4F 6, やめる 8
+    b.go_warp_xy(3, 1); b.wait(40); ev(b, 10); print('out', b.where(), b.objpos(), flush=True)
+    if b.where()[0] != (26, 24): issue('elevator did not reach B4F', b.where()); return
+    for p in [(24, 11), (25, 4)]:
+        b.goto(*p); ev(b, 40)
+    if (25, 3) in b.objpos(): b.talk_to(25, 3, n=0); ev(b, 40)
+    for i in range(4): ev(b, 20)
+    print('after giovanni', b.where(), b.objpos(), flush=True)
+    if (25, 3) in b.objpos(): issue('Giovanni still in the hideout')
+@stage
+def hideout_out(b):
+    if b.where()[0] != (26, 24): return
+    if (25, 2) in b.objpos(): b.talk_to(25, 2, n=0); ev(b, 20)       # the Silph Scope he left
+    print('scope?', b.objpos(), flush=True)
+    # out: the elevator to B1F (its room's Rocket is fought there, then the door opens)
+    for p in [(24, 15), (25, 15)]:
+        b.go_warp_xy(*p); b.wait(30)
+        if b.where()[0] == (26, 25): break
+    lift(b, 'ちか1かい', 2)
+    b.go_warp_xy(3, 1); b.wait(40); ev(b, 20); print('B1F', b.where(), b.objpos(), flush=True)
+    talk_map(b); ev(b, 20)
+    tour(b, (21, 4), visit=False); print('out of the hideout', b.where(), flush=True)
+
+def lift(b, floor, row):
+    for p in [(1, 2), (2, 2)]:
+        if b.goto(*p): break
+    b.face('U'); b.press('A', 60)
+    for i in range(6):
+        t = b.tilemap()
+        if t[row * 20 + 1] == 0xED: break
+        b.g.press('D', 6, 30)
+    b.press('A', 60)
+    for i in range(6):
+        if b.textbox(): b.press('A', 40)
+@stage
+def tower(b):
+    train(b, 2); H.heal_pc(b)
+    tour(b, (26, 20)); print('7F', b.where(), b.objpos(), flush=True)
+    for i in range(6): ev(b, 30)
+    print('after fuji', b.where(), b.objpos(), flush=True)
+    talk_map(b); ev(b, 30)
+
+@stage
+def fuchsia(b):
+    train(b)
+    old = P.AVOID; P.AVOID = tuple(a for a in P.AVOID if a not in ((18, 2), (26, 104), (26, 106))) + ((25, 2),)
+    if b.where()[0] == b.mapk('FuchsiaCity'):                  # resumed in the town
+        visit_town(b, 'FuchsiaCity'); P.AVOID = old; return
+    r = tour(b, (18, 2), skipmaps=[(18, 4)]); print('route12', r, b.where(), b.objpos(), flush=True)
+    # Route 13 -> 14: rows 4 and 6 end at bird keepers standing in one-tile passages (as in Red); row 12 is the way
+    if b.where()[0] != (17, 1): b.travel((17, 1)); b.wait(20)
+    if b.where()[0] == (17, 1) and b.goto(0, 12):
+        b.step('L'); b.wait(20); print('route14 via row 12', b.where(), flush=True)
+    r = tour(b, 'FuchsiaCity'); print('->', r, b.where(), flush=True)
+    if not r: issue('Fuchsia not reached (Snorlax / Poke Flute?)', b.where())
+    else: visit_town(b, 'FuchsiaCity')
+    P.AVOID = old
+@stage
+def koga(b):
+    if badges(b) >= 5: return
+    train(b, 2); H.heal_pc(b)
+    tour(b, 'FuchsiaGym'); talk_map(b); ev(b, 40)
+    if badges(b) < 5: issue('no Soul Badge')
 
 def solve_cans(b):
     from jpchar import decode
