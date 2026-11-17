@@ -5,7 +5,7 @@ from t64a import *
 from kt import sheet, uniq, seq
 import bot as _bot
 _bot.NOHEAL[0] = True
-ROM = os.environ.get('PTROM', 'p114')
+ROM = os.environ.get('PTROM', 'p115')
 make_test_rom(SC+'/build/%s.gbc' % ROM)
 ST = SC + '/play/pt_%s.st'
 def B(prev, tag):
@@ -500,13 +500,13 @@ def mansion_solve(b, target=(26, 60), steps=40, cells=None):
     return b.where()[0] == target
 
 # ---- region-aware planning inside a building (Silph Co.'s pads, rooms behind doors): which floor *and which room*
-def region_plan(b, target, cells, maps):
+def region_plan(b, target, cells, maps, people=True):
     import bot as _b
     from collections import deque
     k, x, y = b.where()
     def node(k, starts):
         G0 = _b.grid_of(b.db.r, b.db.maps[k]['hdr']); G = _b._Grid([list(r) for r in G0])
-        stop = {(w[0], w[1]) for w in b.db.warps(k)} | {(o[2] - 4, o[1] - 4) for o in b.db.objs(k)}   # pads move you on; people stand
+        stop = {(w[0], w[1]) for w in b.db.warps(k)} | ({(o[2] - 4, o[1] - 4) for o in b.db.objs(k)} if people else set())   # pads move you on; people stand
         for (sx, sy) in stop - set(starts):
             if 0 <= sy < len(G) and 0 <= sx < len(G[0]): G[sy][sx] = 0x07
         R = _b._reach_set(G, list(starts)); return (k, min(R), len(R)), R      # (a pad's landing spot reaches more)
@@ -524,7 +524,7 @@ def region_plan(b, target, cells, maps):
             n2, R2 = node((g, m), [(ax, ay)])
             if n2 not in prev: prev[n2] = (n, (k, wx, wy)); q.append((n2, R2))
     return None
-def region_go(b, target, cells, maps, steps=20):
+def region_go(b, target, cells, maps, steps=20, people=True):
     """walk floor by floor (pads, stairs) to the room of `target` that holds one of `cells`"""
     for i in range(steps):
         if b.where()[0] not in maps:
@@ -534,7 +534,7 @@ def region_go(b, target, cells, maps, steps=20):
         for m in maps:                                   # other floors: their rooms as built (doors open once the key is had)
             if m != b.where()[0]: _bb._GC.pop(b.db.maps[m]['hdr'], None)
         live_grid(b)
-        p = region_plan(b, target, cells, maps)
+        p = region_plan(b, target, cells, maps, people)
         if p is None and DOORS[0]:            # (opening doors walks about: only when there is no way yet)
             open_doors(b); p = region_plan(b, target, cells, maps)
         print('  region', b.where(), None if p is None else [a[1:] for a in p], flush=True)

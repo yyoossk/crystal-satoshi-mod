@@ -88,7 +88,7 @@ def forget_weakest(s, moves, types=()):
     ws = min(range(4), key=lambda i: (moves[i] in HM_MOVE.values(), mscore(moves[i], types)))
     nm = NEW_MOVE[0]; NEW_MOVE[0] = None
     print('  forget? new', nm, 'weakest', moves[ws], flush=True)
-    if nm and mscore(nm, types) <= mscore(moves[ws], types):      # not better than what it knows: give it up
+    if nm and nm not in HM_MOVE.values() and mscore(nm, types) <= mscore(moves[ws], types):   # (an HM taught on purpose: learn it)
         s.wait(10); s.press('A', 60)                                  # いいえ -> 「あきらめますか？」
         for i in range(30):
             if cursor(s, [(15, 8), (15, 10)]) is not None: break

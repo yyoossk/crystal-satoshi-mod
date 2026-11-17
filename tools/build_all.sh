@@ -111,5 +111,6 @@ python3 build_phase111.py ../build/p110.gbc ../build/p111.gbc ../build/p111.ips 
 python3 build_phase112.py ../build/p111.gbc ../build/p112.gbc ../build/p112.ips   # カントーの ジムを 赤の 部屋に
 python3 build_phase113.py ../build/p112.gbc ../build/p113.gbc ../build/p113.ips   # なみのりで マップの つなぎめを こえる
 python3 build_phase114.py ../build/p113.gbc ../build/p114.gbc ../build/p114.ips   # ヤマブキジムの ワープ床
-cp ../build/p114.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase115.py ../build/p114.gbc ../build/p115.gbc ../build/p115.ips   # ジョウトで ひでんマシンを 二重に もらわない
+cp ../build/p115.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"

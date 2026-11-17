@@ -47,11 +47,17 @@ def menu_up(b):
     t = b.tilemap()
     if b.has('かけますか') or b.has('コインが　たりません') or b.has('コインが たりません'): return True   # slot machines
     return any(c == 0xED for c in t[:7 * 20])
+def name_screen(s):
+    """a naming screen (Johto rival's name in Elm's lab, a nickname): clear it and confirm -> the default name"""
+    if not (s.has('なまえは') and s.has('けってい')): return False
+    for i in range(8): s.press('B', 12)
+    s.press('S', 30); s.press('A', 60); print('  name screen: default name', flush=True); return True
 _bev = _bot.Bot.ev
 def bev(s, n=120, quiet=3, shots=True, key='A'):
     q = 0; k = 0
     while k < min(n, 60):
         if s.in_battle(): s.battle(); q = 0; continue
+        if name_screen(s): q = 0; continue
         if s.textbox():
             s.press('B' if menu_up(s) else key, 40); k += 1; q = 0
         else:
@@ -65,6 +71,7 @@ def ev2(b, n=80, yes=True):
     q = 0; seen = {}
     for i in range(n):
         if b.in_battle(): b.battle(); snap(b); q = 0; continue
+        if name_screen(b): q = 0; continue
         if b.textbox() and menu_up(b): b.press('B', 30); b.press('B', 30); snap(b); continue
         t = bytes(b.tilemap()[12 * 20:])
         if b.textbox() or 0xED in t:
@@ -98,7 +105,7 @@ def _gt(s, *a, **k):
     m = s.where()[0]
     if m not in _SPC: _SPC[m] = bool(P.spinners(s, m))
     if _SPC[m] and len(a) >= 2: return P.sgoto(s, a[0], a[1], tries=k.get('tries', 60))
-    if m not in _PAD: _PAD[m] = any((w[3], w[4]) == m for w in s.db.warps(m))     # Saffron Gym: pads to the same map
+    if m not in _PAD: _PAD[m] = m == (25, 4)                                          # Saffron Gym: pads to the same map
     if _PAD[m] and len(a) >= 2: return P.wgoto(s, a[0], a[1], tries=k.get('tries', 80))
     return _og(s, *a, **k)
 _PAD = {}
@@ -606,6 +613,155 @@ def league(b):
     for k in range(30): ev(b, 40); b.wait(60)
     P.LIVE[0] = False
 
+@stage
+def jstart(b):
+    """after the Kanto Hall of Fame: Oak's ticket (his lab), already done at the start state"""
+    pass
+@stage
+def jship(b):
+    """Vermilion's harbour: the fast ship's first voyage goes to New Bark Town (phase 47)"""
+    b.seen = set(); H.heal_pc(b)
+    old = P.AVOID; P.AVOID = P.AVOID + ((6, 5), (6, 6), (7, 12))     # (Seafoam's boulders, Route 4's ledges)
+    r = tour(b, (15, 9)); print('-> port passage', r, b.where(), flush=True)
+    P.AVOID = old
+    talk_map(b); ev(b, 30)
+    r = tour(b, (15, 2)); print('-> port', r, b.where(), flush=True)
+    talk_map(b); ev(b, 60)
+    for t in range(40):
+        if b.where()[0] in [(15, i) for i in range(3, 8)]: break
+        P.safe_goto(b, 7, 18) ; b.step('D'); ev(b, 20)
+    print('on board?', b.where(), flush=True)
+    for t in range(60):
+        k = b.where()[0]
+        if k == (24, 4) or k[0] == 24: break
+        talk_map(b); ev(b, 40)
+        for c in [(15, 4), (15, 5), (15, 6), (15, 7), (15, 3)]:
+            if b.where()[0] != c and b.where()[0][0] == 15: tour(b, c); talk_map(b); ev(b, 40)
+            if b.where()[0][0] != 15: break
+    print('-> after the voyage', b.where(), flush=True)
+
+@stage
+def jelm(b):
+    """New Bark Town: Hibiki's house, Prof. Elm (the Johto partner), then Mr. Pokémon (Route 30) and back to Elm:
+    Crystal's story (the rival steals a Pokémon, the police in Elm's lab)"""
+    P.SKIPGYM[0] = True
+    visit_town(b, 'NewBarkTown')
+    tour(b, 'ElmsLab'); talk_map(b); ev(b, 60)
+    for k in range(3): talk_map(b); ev(b, 40)
+    print('elm: party', [(q['species'], q['level']) for q in H.party(b)], flush=True)
+    for t in ['Route29', 'CherrygroveCity', 'Route30', 'MrPokemonsHouse']:
+        r = tour(b, t); print('->', t, r, b.where(), flush=True)
+        if t == 'CherrygroveCity': visit_town(b, t)
+    talk_map(b); ev(b, 60); talk_map(b); ev(b, 60)
+    r = tour(b, 'ElmsLab'); print('-> back to Elm', r, b.where(), flush=True)
+    talk_map(b); ev(b, 80); talk_map(b); ev(b, 60)
+
+def jbadges(b):
+    b.bank1(); return bin(b.peek(0xD84A)[0]).count('1')       # Johto badges (wJohtoBadges, before the Kanto byte)
+@stage
+def jviolet(b):
+    """Route 31, Violet City, Sprout Tower (Li: TM70 Flash), Falkner"""
+    P.SKIPGYM[0] = True
+    for t in ['Route31', 'VioletCity']:
+        r = tour(b, t); print('->', t, r, b.where(), flush=True)
+    visit_town(b, 'VioletCity')
+    for t in ['SproutTower1F', 'SproutTower2F', 'SproutTower3F']:
+        r = tour(b, t); print('->', t, r, b.where(), flush=True); talk_map(b); ev(b, 40)
+    print('johto badges', jbadges(b), flush=True)
+    P.SKIPGYM[0] = False
+    gym_try(b, 'VioletGym'); print('johto badges after Falkner', jbadges(b), flush=True)
+    if jbadges(b) < 1: issue('no Zephyr Badge')
+@stage
+def jegg(b):
+    """Crystal: after Falkner, Elm's aide waits in Violet's Pokémon Center with the Mystery Egg (Togepi);
+    the Route 32 man blocks the way south until you have it. The party is full (6), so one member
+    (the 6th) is put away first (a save edit, test convenience)"""
+    b.bank1()
+    n = b.peek(0xDC9D)[0]
+    if n >= 6:
+        b.g.poke(0xDC9D, 5); b.g.poke(0xDC9E + 5, 0xFF); b.wait(4)
+    r = tour(b, 'VioletPokecenter1F'); print('-> VioletPokecenter1F', r, b.where(), flush=True)
+    talk_at(b, 4, 3, 'U'); ev(b, 80)
+    for k in range(10):
+        if b.textbox(): b.press('A', 40)
+    print('party after the aide', [(q['species'], q['level']) for q in H.party(b)], flush=True)
+
+@stage
+def jazalea(b):
+    """Route 32, Union Cave, Route 33, Azalea Town, Slowpoke Well (Team Rocket), Kurt, Bugsy"""
+    P.SKIPGYM[0] = True
+    for t in ['Route32', 'UnionCave1F', 'Route33', 'AzaleaTown']:
+        r = tour(b, t); print('->', t, r, b.where(), flush=True)
+    visit_town(b, 'AzaleaTown')
+    for t in ['SlowpokeWellB1F']:
+        r = tour(b, t); print('->', t, r, b.where(), flush=True); talk_map(b); ev(b, 60); talk_map(b); ev(b, 40)
+    r = tour(b, 'KurtsHouse'); talk_map(b); ev(b, 40)
+    P.SKIPGYM[0] = False
+    gym_try(b, 'AzaleaGym'); print('johto badges after Bugsy', jbadges(b), flush=True)
+    if jbadges(b) < 2: issue('no Hive Badge')
+
+FF_POS = {1: (14, 31), 2: (15, 25), 3: (20, 24), 4: (29, 22), 5: (28, 31), 6: (24, 35), 7: (22, 31), 8: (15, 29), 9: (10, 35), 10: (6, 28)}
+FF_GOOD = {1: 'UDLR', 2: 'ULR', 3: 'UDR', 4: 'DLR', 5: 'D', 6: 'UDL', 7: 'UR', 8: 'D', 9: 'UL'}   # the player's facing that moves it on
+FF_NEXT = {1: {}, 2: {'D': 8}, 3: {'L': 2}, 4: {'U': 3}, 5: {'U': 4, 'L': 7, 'R': 4}, 6: {'R': 5}, 7: {'D': 5, 'L': 6},
+           8: {'U': 2, 'L': 2, 'R': 7}, 9: {'D': 8, 'R': 8}}
+DV = {'U': (0, -1), 'D': (0, 1), 'L': (-1, 0), 'R': (1, 0)}
+def talk_at(b, x, y, dirs='UDLR'):
+    """walk next to (x, y) so that the player faces one of `dirs`, and press A"""
+    for d in dirs:
+        dx, dy = DV[d]
+        if P.sgoto(b, x - dx, y - dy):
+            b.face(d); b.wait(10); b.press('A', 40); ev(b, 60); return d
+    return None
+@stage
+def jilex(b):
+    """Ilex Forest (Crystal's IlexForest.asm): herd the charcoal maker's Farfetch'd from (14,31) through its ten spots,
+    talking to it from the side that sends it on, then the charcoal master gives HM01 Cut"""
+    b.bank1(); hm0 = b.peek(H.TMHM + 50)[0]
+    r = tour(b, 'IlexForest'); print('-> IlexForest', r, b.where(), flush=True)
+    if not H.has_hm(b, 1): talk_at(b, 7, 28, 'U'); ev(b, 40)                   # the apprentice
+    pos = 10 if H.has_hm(b, 1) else 1
+    for k, xy in FF_POS.items():                          # (the visit may already have moved it)
+        if xy in b.objpos(): pos = k
+    for t in range(30):
+        if pos == 10: break
+        x, y = FF_POS[pos]
+        d = talk_at(b, x, y, FF_GOOD[pos]) or talk_at(b, x, y)
+        if d is None: issue('farfetchd unreachable at %d' % pos); break
+        nxt = FF_NEXT[pos].get(d, pos + 1 if d in FF_GOOD[pos] else pos)
+        print('  farfetchd', pos, (x, y), 'faced', d, '->', nxt, flush=True)
+        pos = nxt
+    print('farfetchd at', pos, flush=True)
+    ev(b, 60)
+    talk_at(b, 7, 28, 'ULR'); ev(b, 40)
+    talk_at(b, 5, 28, 'ULD'); ev(b, 60)
+    b.bank1(); print('HM01?', H.has_hm(b, 1), 'count', b.peek(H.TMHM + 50)[0], 'before', hm0, flush=True)
+    if hm0 and b.peek(H.TMHM + 50)[0] != hm0: issue('a second HM01 in Johto')
+    if not H.has_hm(b, 1): issue('no HM01 Cut'); return
+    H.honest_hms(b, cut=True)
+    r = tour(b, 'Route34'); print('-> Route34', r, b.where(), flush=True)
+
+@stage
+def jgold(b):
+    """Goldenrod City and Whitney (she cries: talk to her again), then Crystal's Sudowoodo chain:
+    meet Floria on Route 36 -> her sister's flower shop gives the Squirtbottle (Plain Badge) -> water the tree"""
+    P.SKIPGYM[0] = True
+    r = tour(b, 'GoldenrodCity'); print('-> GoldenrodCity', r, b.where(), flush=True)
+    visit_town(b, 'GoldenrodCity')
+    P.SKIPGYM[0] = False
+    gym_try(b, 'GoldenrodGym'); talk_map(b); ev(b, 40)
+    print('johto badges after Whitney', jbadges(b), flush=True)
+    if jbadges(b) < 3: issue('no Plain Badge')
+    P.SKIPGYM[0] = True
+    for t in ['Route35', 'NationalPark', 'Route36']:
+        r = tour(b, t); print('->', t, r, b.where(), flush=True)
+    talk_map(b); ev(b, 60)
+    for k in range(2):
+        tour(b, 'GoldenrodFlowerShop'); talk_map(b); ev(b, 60); b.seen.discard(b.mapk('GoldenrodFlowerShop'))
+    r = tour(b, 'Route36'); print('-> Route36 (Sudowoodo)', r, b.where(), flush=True)
+    talk_at(b, 35, 9); ev(b, 80)
+    for t in ['Route37', 'EcruteakCity']:
+        r = tour(b, t); print('->', t, r, b.where(), flush=True)
+
 def pad_talks(b, people):
     """Saffron Gym: walk by the pads (wgoto) next to each person and talk"""
     for (x, y) in people:
@@ -625,10 +781,10 @@ def pad_talks(b, people):
         if b.where()[0] != b.mapk('SaffronGym'): return
 def gym_try(b, gym, tries=3):
     """the gym's trainers and leader; after a loss (or a worn-out lead) heal and go again"""
-    n0 = badges(b)
+    n0 = badges(b) + jbadges(b)
     for t in range(tries):
         tour(b, gym); talk_map(b); ev(b, 40)
-        if badges(b) > n0: return True
+        if badges(b) + jbadges(b) > n0: return True
         print('gym retry', gym, t, b.where(), flush=True); H.heal_pc(b)
         b.seen.discard(b.mapk(gym))
     return False
