@@ -762,6 +762,65 @@ def jgold(b):
     for t in ['Route37', 'EcruteakCity']:
         r = tour(b, t); print('->', t, r, b.where(), flush=True)
 
+@stage
+def jecru(b):
+    """Ecruteak City (Crystal): the Burned Tower first - the rival at (11,9) on 1F, the floor gives way, the three
+    beasts flee on B1F (10,6), Eusine; only then the old man leaves Morty's gym door (EVENT_ECRUTEAK_GYM_GRAMPS);
+    Morty's gym has an invisible floor (the holes are warps back to the start)"""
+    P.SKIPGYM[0] = True
+    r = tour(b, 'EcruteakCity'); print('-> EcruteakCity', r, b.where(), flush=True)
+    r = tour(b, 'BurnedTower1F'); print('-> BurnedTower1F', r, b.where(), flush=True)
+    b1 = b.mapk('BurnedTowerB1F')
+    for t in range(6):
+        if b.where()[0] == b1: break
+        P.sgoto(b, 11, 9); ev(b, 120)
+        if b.where()[0] != b1: P.sgoto(b, 10, 9); ev(b, 60)
+    print('-> B1F', b.where(), flush=True)
+    for t in range(4):
+        P.sgoto(b, 10, 6); ev(b, 120)
+    talk_map(b); ev(b, 60)
+    print('beasts released?', b.where(), flush=True)
+    r = tour(b, 'EcruteakCity'); print('-> back to EcruteakCity', r, b.where(), flush=True)
+    visit_town(b, 'EcruteakCity')                         # (the Burned Tower's floor gives way only once: do it first)
+    P.SKIPGYM[0] = False
+    gym_try(b, 'EcruteakGym'); print('johto badges after Morty', jbadges(b), flush=True)
+    if jbadges(b) < 4: issue('no Fog Badge')
+
+@stage
+def jmorty(b):
+    """Morty again (the first jecru run could not walk his invisible floor)"""
+    if jbadges(b) >= 4: return
+    P.SKIPGYM[0] = False
+    gym_try(b, 'EcruteakGym'); print('johto badges after Morty', jbadges(b), flush=True)
+    if jbadges(b) < 4: issue('no Fog Badge')
+
+@stage
+def jolive(b):
+    """Olivine (Crystal): the Lighthouse - Jasmine on 6F with the sick Ampharos; Surf to Cianwood (Routes 40/41),
+    Chuck, the pharmacy's SecretPotion (Chuck's wife: Fly only if not already in the bag, phase 115); back to the
+    Lighthouse for Jasmine, then her gym"""
+    P.SKIPGYM[0] = True
+    for t in ['Route38', 'Route39', 'OlivineCity']:
+        r = tour(b, t); print('->', t, r, b.where(), flush=True)
+    visit_town(b, 'OlivineCity')
+    r = tour(b, 'OlivineLighthouse6F'); print('-> Lighthouse 6F', r, b.where(), flush=True)
+    talk_map(b); ev(b, 60)
+    if H.has_hm(b, 3): H.honest_hms(b, cut=True, surf=True)
+    r = tour(b, 'CianwoodCity'); print('-> CianwoodCity', r, b.where(), flush=True)
+    visit_town(b, 'CianwoodCity')
+    P.SKIPGYM[0] = False
+    gym_try(b, 'CianwoodGym'); print('johto badges after Chuck', jbadges(b), flush=True)
+    if jbadges(b) < 5: issue('no Storm Badge')
+    P.SKIPGYM[0] = True
+    b.seen.discard(b.mapk('CianwoodPharmacy'))
+    tour(b, 'CianwoodPharmacy'); talk_map(b); ev(b, 60)
+    b.seen.discard(b.mapk('OlivineLighthouse6F'))
+    r = tour(b, 'OlivineLighthouse6F'); print('-> Lighthouse 6F again', r, b.where(), flush=True)
+    talk_map(b); ev(b, 80); talk_map(b); ev(b, 60)
+    P.SKIPGYM[0] = False
+    gym_try(b, 'OlivineGym'); print('johto badges after Jasmine', jbadges(b), flush=True)
+    if jbadges(b) < 6: issue('no Mineral Badge')
+
 def pad_talks(b, people):
     """Saffron Gym: walk by the pads (wgoto) next to each person and talk"""
     for (x, y) in people:
@@ -782,8 +841,12 @@ def pad_talks(b, people):
 def gym_try(b, gym, tries=3):
     """the gym's trainers and leader; after a loss (or a worn-out lead) heal and go again"""
     n0 = badges(b) + jbadges(b)
+    import bot as _bb
     for t in range(tries):
-        tour(b, gym); talk_map(b); ev(b, 40)
+        tour(b, gym)
+        _bb.PRECISE[0] = gym in ('EcruteakGym',)          # (its invisible floor: one tile at a time)
+        try: talk_map(b); ev(b, 40)
+        finally: _bb.PRECISE[0] = False
         if badges(b) + jbadges(b) > n0: return True
         print('gym retry', gym, t, b.where(), flush=True); H.heal_pc(b)
         b.seen.discard(b.mapk(gym))

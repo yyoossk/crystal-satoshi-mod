@@ -223,7 +223,7 @@ def sgoto(b, tx, ty, tries=60):
         k2, x, y = b.where()
         if k2 != k: return False
         if (x, y) == (tx, ty): return True
-        blk = (set(b.objpos()) | {(o[2] - 4, o[1] - 4) for o in b.db.objs(k)} | bad | ({(w[0], w[1]) for w in b.db.warps(k)} - {(tx, ty)})) - {(tx, ty)}   # (people off screen too)
+        blk = (set(b.objpos()) | {(o[2] - 4, o[1] - 4) for o in b.db.objs(k)} | bad | (b.live_warps(k) - {(tx, ty)})) - {(tx, ty)}   # (people off screen too)
         prev = {(x, y): None}; q = deque([(x, y)]); found = False
         while q:
             p = q.popleft()

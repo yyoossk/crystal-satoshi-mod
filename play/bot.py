@@ -24,6 +24,7 @@ def make_test_rom(src=SC + '/build/p63.gbc'):
 
 
 SAFESTEP = [False]
+PRECISE = [False]          # one tile per step, by taps (pit floors: holding the key walks a tile too far)
 SKIPFLOORWARP = [False]
 class Bot:
     def __init__(s, state=None, sav=None, out='run', rom=None):
@@ -98,6 +99,14 @@ class Bot:
     # ---------------- moving / talking
     def step(s, d, n=1):
         ok = True
+        if PRECISE[0]:
+            for i in range(n):
+                p0 = s.peek(W_MAP, 4); moved = False
+                for k in range(3):                       # (a tap turns the player first, the next one walks)
+                    s.g.down(d); s.wait(2); s.g.up(d); s.wait(26)
+                    if s.peek(W_MAP, 4) != p0 or s.textbox() or s.in_battle(): moved = s.peek(W_MAP, 4) != p0; break
+                ok = ok and moved
+            return ok
         for i in range(n):
             p0 = s.peek(W_MAP, 4); s.g.down(d); moved = False
             for f in range(14):
@@ -227,12 +236,18 @@ def _path(s, tx, ty, extra_block=(), allow_target=True, ignore_objs=False):
     return out[::-1]
 Bot.path = _path
 
+def live_warps(s, k):
+    """warp spots that really warp: a warp event on plain floor (collision $00) does nothing (Ecruteak Gym's (6,7), (4,14))"""
+    G = grid_of(s.db.r, s.db.maps[k]['hdr'])
+    return {(w[0], w[1]) for w in s.db.warps(k) if not (0 <= w[1] < len(G) and 0 <= w[0] < len(G[0]) and G[w[1]][w[0]] == 0x00)}
+Bot.live_warps = live_warps
+
 def _goto(s, tx, ty, tries=40, stop_battle=True):
     s.talked = 0
     for t in range(tries):
         k, x, y = s.where()
         if (x, y) == (tx, ty): return True
-        av = {(w[0], w[1]) for w in s.db.warps(k)} - {(tx, ty), (x, y)}
+        av = s.live_warps(k) - {(tx, ty), (x, y)}
         p = s.path(tx, ty, extra_block=av)
         if p is None and s.blocked:
             s.blocked = set(); p = s.path(tx, ty, extra_block=av)
@@ -385,24 +400,27 @@ def _cross(s, d, hint=None):
     cand = [c for c in cand if _ok_cell(G, c[0], c[1]) and s.path(*c, allow_target=False) is not None]
     ref = hint if hint is not None else (x if d in 'UD' else y)
     cand.sort(key=lambda c: abs((c[0] if d in 'UD' else c[1]) - ref))
-    for c in cand[:6]:
+    tried = []
+    for c in cand[:16]:                                       # first walk: the next map's edge may be a wall here (Route 37 -> Ecruteak)
         r = s.goto(*c)
         if s.where()[0] != k: s.wait(40); return True
         if r:
-            for i in range(3):
-                s.step(d); s.wait(30)
-                if s.where()[0] != k: s.wait(40); return True
-                k1_, x1_, y1_ = s.where()
-                if k1_ == k and CAN_SURF[0] and 0 <= y1_ < H and 0 <= x1_ < W and G[y1_][x1_] not in WATER and not s.in_battle():
-                    # the next map's edge is water (Cinnabar -> Route 20): Surf from the shore across the connection
-                    s.face(d); s.press('A', 60)
-                    for i_ in range(6):
-                        if s.has('はい'): break
-                        s.press('A', 40)
-                    s.press('A', 60); s.clear_text(shots=False); s.wait(60); print('  surf at the edge', s.where(), flush=True)
-                    if s.where()[0] != k: s.wait(40); return True
-                    s.step(d); s.wait(30)
-                    if s.where()[0] != k: s.wait(40); return True
+            tried.append(c)
+            s.step(d); s.wait(30)
+            if s.where()[0] != k: s.wait(40); return True
+            if s.in_battle() or s.textbox(): s.ev(30, shots=False)
+            if s.where()[0] != k: s.wait(40); return True
+    if CAN_SURF[0]:
+        for c in tried[:6]:                                   # then Surf from the shore across the connection (Cinnabar -> Route 20)
+            if not s.goto(*c): continue
+            s.face(d); s.press('A', 60)
+            for i_ in range(6):
+                if s.has('はい'): break
+                s.press('A', 40)
+            s.press('A', 60); s.clear_text(shots=False); s.wait(60); print('  surf at the edge', s.where(), flush=True)
+            if s.where()[0] != k: s.wait(40); return True
+            s.step(d); s.wait(30)
+            if s.where()[0] != k: s.wait(40); return True
     s.log.append('cross failed %s %s' % (k, d)); return False
 Bot.cross = _cross
 
