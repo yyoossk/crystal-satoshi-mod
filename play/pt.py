@@ -5,7 +5,7 @@ from t64a import *
 from kt import sheet, uniq, seq
 import bot as _bot
 _bot.NOHEAL[0] = True
-ROM = os.environ.get('PTROM', 'p113')
+ROM = os.environ.get('PTROM', 'p114')
 make_test_rom(SC+'/build/%s.gbc' % ROM)
 ST = SC + '/play/pt_%s.st'
 def B(prev, tag):
@@ -344,7 +344,9 @@ def wgoto(b, tx, ty, tries=80):
     for t in range(tries):
         if b.textbox() or b.in_battle(): ev(b, 20)
         k2, x, y = b.where()
-        if k2 != k: return False
+        if k2 != k:
+            if WDEBUG[0]: print('   wgoto: left the map', b.where(), flush=True)
+            return False
         if (x, y) == (tx, ty): return True
         blk = set(b.objpos()) | bad | (OUT - {(tx, ty)})
         prev = {(x, y): None}; q = deque([(x, y)]); found = False
@@ -356,18 +358,23 @@ def wgoto(b, tx, ty, tries=80):
                 if not ok(*n) or n in blk: continue
                 n2 = PAD.get(n, n) if n != (tx, ty) else n
                 if n2 not in prev: prev[n2] = (p, d); q.append(n2)
-        if not found: return False
+        if not found:
+            if WDEBUG[0]: print('   wgoto: no path from', (x, y), 'blk', sorted(blk), flush=True)
+            return False
         path = []; p = (tx, ty)
         while prev[p]: p, d = prev[p][0], prev[p][1]; path.append((d, p))
         path.reverse()
         d, p = path[0]
+        if WDEBUG[0]: print('   wgoto step', d, (x, y), '->', p, 'path', len(path), flush=True)
         b.step(d); b.wait(30)
         for i in range(10):
             p0 = b.where(); b.wait(12)
             if b.where() == p0: break
         if b.where()[1:] == (x, y) and not b.textbox() and not b.in_battle():
             dx, dy = D[d]; bad.add((x + dx, y + dy))
+            if WDEBUG[0]: print('   wgoto bad', (x + dx, y + dy), 'from', (x, y), flush=True)
     return b.where()[1:] == (tx, ty)
+WDEBUG = [False]
 def switches(b):
     """bg events facing up that ask a question (the Pokémon Mansion's secret switches): [(x, y)]"""
     k = b.where()[0]; m = b.db.maps[k]; out = []
@@ -522,9 +529,13 @@ def region_go(b, target, cells, maps, steps=20):
         if b.where()[0] not in maps:
             entry = [m for m in maps if any((w[3], w[4]) == m for w in b.db.warps(b.mapk('SaffronCity')))]
             tour(b, entry[0] if entry else target, visit=False)
+        import bot as _bb
+        for m in maps:                                   # other floors: their rooms as built (doors open once the key is had)
+            if m != b.where()[0]: _bb._GC.pop(b.db.maps[m]['hdr'], None)
         live_grid(b)
-        if DOORS[0]: open_doors(b)
         p = region_plan(b, target, cells, maps)
+        if p is None and DOORS[0]:            # (opening doors walks about: only when there is no way yet)
+            open_doors(b); p = region_plan(b, target, cells, maps)
         print('  region', b.where(), None if p is None else [a[1:] for a in p], flush=True)
         if p is None: return False
         if not p: return True

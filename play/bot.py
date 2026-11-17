@@ -469,7 +469,7 @@ def _edge_cells(G, d):
     else: c = [(W - 1, i) for i in range(H)]
     return [p for p in c if _ok_cell(G, p[0], p[1])]
 
-SKIPWARPS = {((21, 4), 39, 19)}      # Celadon: Red's inaccessible warp into the Dept. Store 5F (a wall)
+SKIPWARPS = {((21, 4), 39, 19), ((26, 35), 5, 5)}      # Celadon: Red's inaccessible warp into the Dept. Store 5F (a wall)
 OPP = {'N': 'S', 'S': 'N', 'W': 'E', 'E': 'W'}
 def _hops(s, k, starts):
     """possible moves from map k when standing anywhere in starts: [(kind, arg, dest, dest_starts)]"""
@@ -540,6 +540,15 @@ def _go_warp_xy(s, wx, wy, dirs='DULR'):
         if s.goto(wx, wy) or s.where()[0] != k: break
     s.wait(50)
     if s.where()[0] != k: s.wait(60); return True
+    if s.where()[1:] == (wx, wy):
+        # standing on the warp without having warped (a battle ended there): step off and back on
+        OPPD_ = {'U': 'D', 'D': 'U', 'L': 'R', 'R': 'L'}
+        for d, (dx, dy) in (('U', (0, -1)), ('D', (0, 1)), ('L', (-1, 0)), ('R', (1, 0))):
+            nx, ny = wx + dx, wy + dy
+            if 0 <= ny < len(G) and 0 <= nx < len(G[0]) and G[ny][nx] in WALK and s.step(d):
+                s.step(OPPD_[d]); s.wait(50)
+                if s.where()[0] != k: s.wait(60); return True
+                break
     for d in dirs:
         if s.where()[1:] == (wx, wy):
             s.g.down(d); s.wait(24); s.g.up(d); s.wait(60)

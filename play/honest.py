@@ -147,19 +147,27 @@ def party_cursor(s):
         if t[y * 20] in (0xED, 0xEC): return (y - 1) // 2
     return None
 def pick_party(s):
-    """party menu after a faint: the healthiest Pokémon that can fight (the menu reads a key only now and then: hold it)"""
+    """party menu (after a faint, or a switch): the healthiest Pokémon that can fight and is not already out
+    (the menu reads a key only now and then: hold it)"""
     s.wait(30); p = party(s)
     alive = [i for i, q in enumerate(p) if q['hp'] > 0]
     if not alive: return
-    want = max(alive, key=lambda i: (p[i]['level'], p[i]['hp']))
-    for k in range(12):
-        c = party_cursor(s)
-        if c == want: break
-        s.g.press('D' if c is None or c < want else 'U', 16, 20)
-    s.g.press('A', 16, 40)
-    for k in range(4):
-        if s.has('いれかえる') or s.has('つよさをみる'): s.g.press('A', 16, 40)
-        else: break
+    for want in sorted(alive, key=lambda i: (-p[i]['level'], -p[i]['hp'])):
+        for k in range(12):
+            c = None
+            for w in range(8):                       # the cursor blinks: read it a few times
+                c = party_cursor(s)
+                if c is not None: break
+                s.wait(6)
+            if c == want: break
+            s.g.press('D' if c is None or c < want else 'U', 16, 20)
+        s.g.press('A', 16, 40)
+        for k in range(4):
+            if s.has('いれかえる') or s.has('つよさをみる'): s.g.press('A', 16, 40)
+            else: break
+        if s.has('もうでています') or s.has('げんきが'):    # already out / fainted: the next one
+            s.g.press('B', 8, 40); continue
+        return
 
 _bot.Bot.battle = smart_battle
 import unicodedata as _ud

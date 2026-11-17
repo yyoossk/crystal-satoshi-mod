@@ -97,7 +97,10 @@ def _gt(s, *a, **k):
     m = s.where()[0]
     if m not in _SPC: _SPC[m] = bool(P.spinners(s, m))
     if _SPC[m] and len(a) >= 2: return P.sgoto(s, a[0], a[1], tries=k.get('tries', 60))
+    if m not in _PAD: _PAD[m] = any((w[3], w[4]) == m for w in s.db.warps(m))     # Saffron Gym: pads to the same map
+    if _PAD[m] and len(a) >= 2: return P.wgoto(s, a[0], a[1], tries=k.get('tries', 80))
     return _og(s, *a, **k)
+_PAD = {}
 _bot.Bot.goto = _gt
 
 # --- the Pokémon Center 2F (Crystal's link room): its stairs lead back to whichever center, which the planner can't see
@@ -433,8 +436,12 @@ def silph(b):
     train(b, 2); H.heal_pc(b)
     P.LIVE[0] = True; P.DOORS[0] = True
     tour(b, SILPH[5])                                  # 5F: the Card Key (its talks may step on a pad: go back for it)
-    P.region_go(b, SILPH[5], [(21, 17), (20, 16), (22, 16), (21, 15)], set(SILPH.values()) | {(26, 36)})
-    print('card key ball', pick_ball(b, 21, 16), b.where(), flush=True)
+    for t in range(4):
+        if has_card_key(b): break
+        P.region_go(b, SILPH[5], [(20, 16), (22, 16)], set(SILPH.values()) | {(26, 36)})
+        if b.where()[0] == SILPH[5]: pick_ball(b, 21, 16)
+        print('card key', has_card_key(b), b.where(), flush=True)
+    if not has_card_key(b): issue('Silph Co. card key not got')
     for p in range(1):
         for f in range(1, 12):
             r = tour(b, SILPH[f]); print('### silph floor', f, r, b.where(), flush=True)
@@ -442,6 +449,8 @@ def silph(b):
         b.seen -= set(SILPH.values())
     silph_gio(b)
     P.LIVE[0] = False; P.DOORS[0] = False
+def has_card_key(b):
+    b.bank1(); return 0x89 in b.peek(0xD8B0, 0x1B)       # the key items pocket
 def pick_ball(b, x, y):
     """walk next to an item ball without touching warp tiles (pads) and pick it up"""
     k = b.where()[0]
@@ -453,20 +462,38 @@ def pick_ball(b, x, y):
 def silph_gio(b):
     """11F's boardroom (Giovanni) is reached only by 7F's warp pad (as in Red): the stairs / elevator end in a corridor"""
     # Red's way: 3F's pad (11,11) -> 7F (5,3), the pad (5,7) -> 11F (3,2): the room of 11F with Giovanni's door
-    P.region_go(b, SILPH[11], [(3, 3), (2, 2), (4, 2), (3, 1)], set(SILPH.values()) | {(26, 36)})
-    print('-> 11F', b.where(), flush=True)
+    for t in range(4):
+        P.region_go(b, SILPH[11], [(3, 3), (2, 2), (4, 2), (3, 1)], set(SILPH.values()) | {(26, 36)})
+        print('-> 11F', b.where(), flush=True)
+        p0 = H.party(b)[0]
+        if p0['hp'] >= p0['maxhp'] * 0.8 or t == 3: break
+        H.heal_pc(b)                                   # the rival on 7F wore the lead down: heal before Giovanni
     if b.where()[0] != SILPH[11]: issue('Silph 7F pad to 11F not reached', b.where()); return
     P.live_grid(b); P.open_doors(b); P.live_grid(b)
     talk_map(b); ev(b, 30)
     print('after 11F', b.where(), b.objpos(), flush=True)
-    if (6, 9) in b.objpos(): issue('Giovanni still in Silph Co. 11F')
+    if not b.flag(0x606): issue('Giovanni not beaten in Silph Co. 11F (flag 0x606)')
 @stage
 def sabrina(b):
     if badges(b) >= 7: return
     train(b, 2); H.heal_pc(b); P.SKIPGYM[0] = False
-    gym_try(b, 'SaffronGym')
+    for t in range(3):
+        if badges(b) >= 7: break
+        tour(b, 'SaffronGym', visit=False)
+        pad_talks(b, [(17, 13), (17, 7), (17, 1), (10, 1), (3, 1), (3, 7), (3, 13), (9, 8)])   # Red's trainers, then Sabrina
+        ev(b, 30)
+        if badges(b) < 7: print('gym retry SaffronGym', t, b.where(), flush=True); H.heal_pc(b)
     if badges(b) < 7: issue('no Marsh Badge')
 
+def pad_talks(b, people):
+    """Saffron Gym: walk by the pads (wgoto) next to each person and talk"""
+    for (x, y) in people:
+        if (x, y) not in [(o[2] - 4, o[1] - 4) for o in b.db.objs(b.where()[0])]: continue
+        for dx, dy, d in ((0, 1, 'U'), (1, 0, 'L'), (-1, 0, 'R'), (0, -1, 'D')):
+            if P.wgoto(b, x + dx, y + dy):
+                b.face(d); b.press('A', 40); ev(b, 40); break
+        print('  pad talk', (x, y), b.where(), 'badges', badges(b), flush=True)
+        if b.where()[0] != b.mapk('SaffronGym'): return
 def gym_try(b, gym, tries=3):
     """the gym's trainers and leader; after a loss (or a worn-out lead) heal and go again"""
     n0 = badges(b)
