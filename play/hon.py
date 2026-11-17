@@ -34,6 +34,7 @@ def _bt(s, *a, **k):
 _bot.Bot.battle = _bt
 _oh = H.heal_pc
 def _hp(b, *a):
+    if b.where()[0] in ((26, 68), (26, 69), (26, 70)): H.escape_rope(b)      # Victory Road: a rope, not the long walk
     t = time.time(); _busy[0] = True
     try: r = _oh(b, *a)
     finally: _busy[0] = False
@@ -485,13 +486,141 @@ def sabrina(b):
         if badges(b) < 7: print('gym retry SaffronGym', t, b.where(), flush=True); H.heal_pc(b)
     if badges(b) < 7: issue('no Marsh Badge')
 
+@stage
+def viridian(b):
+    if badges(b) >= 8: return
+    train(b, 2); H.heal_pc(b); P.SKIPGYM[0] = False
+    old = P.AVOID; P.AVOID = P.AVOID + ((7, 12),)       # Route 4 from Cerulean: Red's ledges make it one way
+    tour(b, 'ViridianCity'); P.AVOID = old
+    P.LIVE[0] = True
+    gym_try(b, 'ViridianGym')
+    P.LIVE[0] = False
+    if badges(b) < 8: issue('no Earth Badge')
+
+VR1, VR2, VR3 = (26, 68), (26, 69), (26, 70)
+def boulders_here(b):
+    k = b.where()[0]
+    return ([(o[2] - 4, o[1] - 4) for o in b.db.objs(k) if o[0] == P.SPR_BOULDER],
+            [(o[2] - 4, o[1] - 4) for o in b.db.objs(k) if o[0] != P.SPR_BOULDER])
+def live_boulders(b, guess):
+    """boulders now: the ones on screen, the rest where we last saw them"""
+    op = set(b.objpos()); return [p for p in guess if p in op] + [p for p in op if p not in guess and p in guess]
+@stage
+def victory(b):
+    """Victory Road as in Red: 1F's switch, 2F's first switch, 3F's switch and its hole (a boulder falls to 2F),
+    2F's second switch; then Route 23's top and the Indigo Plateau.  (A floor's boulders go back to their places
+    when the player leaves it, as in Red: after healing that floor starts again; the switches stay pressed.)"""
+    at_sw2 = b.where()[0] in (VR2, VR3) and b.flag(2241)                  # resumed after the hole: stay in the cave
+    if not at_sw2:
+        if b.where()[0] in (VR1, VR2, VR3): H.escape_rope(b)          # (walking out past the boulders: no)
+        train(b, 2); H.heal_pc(b)
+    P.LIVE[0] = True
+    H.FLEE[0] = True
+    # the user (2026-11-17): use Repel -- Max Repels put in the bag (save-data edit), used from the bag
+    if H.MAX_REPEL not in [i for i, _ in H.items(b)]: H.add_item(b, H.MAX_REPEL, 30)
+    P.REPEL[0] = True
+    _tr0 = _bot.Bot.travel
+    def trr(s, *a, **k):
+        if s.where()[0] in (VR1, VR2, VR3, (16, 1), (23, 2)): H.use_repel(s)
+        return _tr0(s, *a, **k)
+    _bot.Bot.travel = trr                                      # run from the wild Pokémon in the cave (trainers: fight)
+    def floor(k, goal, enter):
+        for t in range(4):
+            enter()
+            if b.where()[0] != k: continue
+            bs, ob = boulders_here(b)
+            r = P.push_boulders(b, bs, goal, ob, minhp=0.15 if goal == (23, 15) else 0.55)   # (the hole: one push)
+            print('VR', k, goal, r, b.where(), flush=True)
+            if r is True or (goal == (23, 15) and (b.flag(2241) or b.where()[0] == VR2)): return True   # (fell down with it)
+            if r is None: return None
+            if b.where()[0] in (VR1, VR2, VR3): H.escape_rope(b)     # out of the cave first (walking back is long)
+            H.heal_pc(b)
+        return False
+    def to3f():
+        for t in range(3):
+            if b.where()[0] == VR3: return
+            if b.where()[0] not in (VR2, VR3):
+                # Red: entering 2F resets 1F's switch -- coming back from a Pokémon Center, push 1F's boulder again
+                tour(b, VR1, visit=False)
+                if b.where()[0] == VR1:
+                    bs, ob = boulders_here(b); P.push_boulders(b, bs, (17, 13), ob)
+            tour(b, VR2, visit=False)
+            if b.where()[0] == VR2: b.go_warp_xy(23, 7); b.wait(30); ev(b, 10)
+    SW2A, SW2B, SW3, HOLE = 2212, 2213, 2214, 2241      # phase 23's flags (p23_flags.json): what is done already
+    def save(): b.g.save_state(HST % 'victory_tr')
+    if not b.flag(SW2A):
+        floor(VR1, (17, 13), lambda: tour(b, VR1, visit=False))
+        floor(VR2, (1, 16), lambda: tour(b, VR2, visit=False)); save()
+    if not b.flag(SW3):
+        floor(VR3, (3, 5), to3f); save()
+    if not b.flag(SW2B):
+        if not b.flag(HOLE): floor(VR3, (23, 15), to3f)
+        if b.where()[0] == VR3 and P.safe_goto(b, 23, 14, tries=12): b.step('D'); b.wait(60); ev(b, 10)   # follow it down
+        print('VR after the hole', b.where(), flush=True); save()
+        for t in range(3):
+            if b.flag(SW2B): break
+            if b.where()[0] != VR2: tour(b, VR2, visit=False)
+            bs = [(23, 16)] + [p for p in boulders_here(b)[0] if p != (23, 16)]
+            r = P.push_boulders(b, bs, (9, 16), boulders_here(b)[1], minhp=0.25); print('VR 2F switch 2', r, b.where(), flush=True)
+            if r == 'heal':
+                if b.where()[0] in (VR1, VR2, VR3): H.escape_rope(b)
+                H.heal_pc(b)
+            elif r is None: break
+        save()
+    _busy[0] = True                                   # (no walking back to heal: the Indigo Plateau has its own center)
+    try: r = tour(b, (16, 2), visit=False)
+    finally: _busy[0] = False
+    print('-> Indigo Plateau', r, b.where(), flush=True)
+    if b.where()[0] != (16, 2): issue('Indigo Plateau not reached', b.where())
+    H.FLEE[0] = False; P.REPEL[0] = False; _bot.Bot.travel = _tr0
+    P.LIVE[0] = False
+
+E4_ROOMS = [(16, 3), (16, 4), (16, 5), (16, 6)]
+@stage
+def league(b):
+    """the user's wish (2026-11-17): at the Indigo Plateau the party becomes six Pokémon at Lv 100 (team.py, written
+    into the save data), then the Elite Four and the champion, walking and talking only"""
+    import team as T
+    if b.where()[0] != (16, 2): tour(b, (16, 2))
+    T.install(b); b.wait(30); H.heal_pc(b, (16, 2))
+    print('team', [(q['species'], q['level']) for q in H.party(b)], flush=True)
+    P.LIVE[0] = True
+    for room in E4_ROOMS + [(16, 7)]:
+        r = tour(b, room, visit=False); ev(b, 20); print('room', room, r, b.where(), flush=True)
+        if b.where()[0] != room: issue('league room not reached', room, b.where()); return
+        top = 3 if room == (16, 7) else 7
+        for t in range(3):
+            P.live_grid(b)
+            if P.safe_goto(b, 5, top + 1, tries=12) or b.where()[1:] == (5, top + 1): break
+            ev(b, 20)
+        b.face('U'); b.wait(10); b.press('A', 40); ev(b, 80)
+        for k in range(6):
+            b.wait(60)
+            if b.in_battle() or b.textbox(): ev(b, 80)
+        print('  beat', room, b.where(), 'lead hp', H.party(b)[0]['hp'], flush=True)
+        if b.where()[0] != room: break
+    for t in range(10):
+        if b.where()[0] == (16, 8): break
+        ev(b, 40); b.wait(60)
+    print('hall of fame?', b.where(), flush=True)
+    for k in range(30): ev(b, 40); b.wait(60)
+    P.LIVE[0] = False
+
 def pad_talks(b, people):
     """Saffron Gym: walk by the pads (wgoto) next to each person and talk"""
     for (x, y) in people:
         if (x, y) not in [(o[2] - 4, o[1] - 4) for o in b.db.objs(b.where()[0])]: continue
         for dx, dy, d in ((0, 1, 'U'), (1, 0, 'L'), (-1, 0, 'R'), (0, -1, 'D')):
             if P.wgoto(b, x + dx, y + dy):
-                b.face(d); b.press('A', 40); ev(b, 40); break
+                b.wait(30)
+                for k_ in range(3):
+                    b.face(d); b.wait(10); b.press('A', 40)
+                    if b.textbox() or b.in_battle(): break
+                ev(b, 60)
+                for k_ in range(6):                    # (Sabrina's battle transition is long: wait for the battle)
+                    b.wait(60)
+                    if b.in_battle() or b.textbox(): ev(b, 60)
+                break
         print('  pad talk', (x, y), b.where(), 'badges', badges(b), flush=True)
         if b.where()[0] != b.mapk('SaffronGym'): return
 def gym_try(b, gym, tries=3):

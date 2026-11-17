@@ -99,12 +99,23 @@ def forget_weakest(s, moves, types=()):
     for k in range(ws): s.press('D', 15)
     s.press('A', 50); return True
 DIS = set(); LASTW = [0]
+FLEE = [False]      # run from wild Pokémon (a long walk through a cave: Victory Road)
 def smart_battle(s, maxp=600):
-    k = 0; DIS.clear()
+    k = 0; DIS.clear(); tried_run = not FLEE[0]
     while s.in_battle() and k < maxp:
         k += 1
         t = s.tilemap()
         c = cursor(s, MAIN) if t[14 * 20 + 10:14 * 20 + 14] == bytes.fromhex('c0c0b6b3') else None
+        if c is not None and not tried_run:
+            tried_run = True; s.wait(20)                     # にげる (bottom right); a trainer: 「だめだ！」 and fight
+            if c in (0, 2): s.g.press('R', 4, 10)
+            if c in (0, 1): s.g.press('D', 4, 10)
+            s.g.press('A', 8, 60)
+            for i in range(6):
+                if not s.in_battle(): break
+                if s.textbox() and not cursor(s, MAIN) is not None: s.press('A', 40)
+                else: break
+            continue
         if c is not None:
             s.wait(20)
             if c in (1, 3): s.g.press('L', 4, 10)
@@ -191,7 +202,7 @@ def nearest_pc(b):
     best = None
     for k, n in b.names.items():
         if n and n.endswith('Pokecenter1F') and k in b.db.maps:
-            try: pl = b.plan(k)
+            try: pl = b.plan(k, __import__('pt').AVOID)
             except Exception: continue
             if pl is not None and (best is None or len(pl) < best[0]): best = (len(pl), k)
     return best and best[1]
@@ -318,3 +329,56 @@ def ensure(b, target, badges=0):
         if not grind(b, min(target, party(b)[0]['level'] + 3), area, maxbattles=60):
             raise RuntimeError('cannot grind in %s' % (area,))
     if hurt(b, 0.9): heal_pc(b)
+
+ESCAPE_ROPE = 19
+def items(b):
+    b.bank1(); n = b.peek(0xD885)[0]; d = b.peek(0xD886, 2 * n); return [(d[2 * i], d[2 * i + 1]) for i in range(n)]
+MAX_REPEL = 43
+def add_item(b, item, n):
+    """(save-data edit, as the user asked: e.g. Max Repels for Victory Road) put n of an item in the bag"""
+    b.bank1(); it = items(b)
+    for i, (x, c) in enumerate(it):
+        if x == item: b.g.poke(0xD886 + 2 * i + 1, min(99, c + n)); return
+    k = len(it); b.g.poke(0xD885, k + 1); b.g.poke(0xD886 + 2 * k, item); b.g.poke(0xD886 + 2 * k + 1, n)
+    b.g.poke(0xD886 + 2 * k + 2, 0xFF)
+def use_repel(b):
+    """use a Max Repel from the bag when none is working"""
+    W_REPEL = __import__('pt').W_REPEL
+    b.bank1()
+    if b.peek(W_REPEL)[0] > 0: return True
+    return use_item(b, MAX_REPEL, 'スプレー')
+def escape_rope(b):
+    """use an Escape Rope (あなぬけのヒモ) from the bag: back to the last Pokémon Center's town"""
+    return use_item(b, ESCAPE_ROPE, 'あなぬけ', warp=True)
+def use_item(b, item, word, warp=False):
+    it = [i for i, _ in items(b)]
+    if item not in it: print('  no item', item, flush=True); return False
+    idx = it.index(item); k0 = b.where()[0]
+    for i in range(6):                               # a text or a battle first; the start menu must be open
+        if b.in_battle(): b.battle()
+        elif b.textbox(): b.press('B', 30)
+        else: break
+    b.wait(40); b.press('S', 40)
+    for i in range(10):
+        t = b.tilemap(); rows = [y for y in range(18) if t[y * 20 + 13] == 0xED]
+        if rows and rows[0] == 6: break
+        if not rows: b.press('S', 40); continue
+        b.press('D', 15)
+    b.press('A', 60)
+    for i in range(5):
+        if b.has('キズぐすり') or b.has(word): break
+        b.press('L', 30)
+    for i in range(12): b.g.press('U', 4, 8)
+    for i in range(idx): b.g.press('D', 4, 12)
+    b.wait(20); b.press('A', 40)             # the item's menu: つかう
+    b.press('A', 60)
+    for i in range(20):
+        if warp and b.where()[0] != k0 and not b.textbox(): break
+        if b.textbox(): b.press('A', 40)
+        else: b.wait(30)
+        if not warp and not b.textbox():
+            for k in range(4): b.press('B', 20)        # (out of the bag and the menu)
+            break
+    b.wait(60); print('  used item', item, '->', b.where(), flush=True)
+    if warp: return b.where()[0] != k0
+    b.bank1(); return b.peek(__import__('pt').W_REPEL)[0] > 0

@@ -142,7 +142,7 @@ def fast(b, wild=False):
                 s.g.pokes(0xDCA5 + 0x30 * i + 0x20, [0, 0, 3, 0xE7])  # status, HP back
             return r
         _b.Bot.battle = bt
-AVOID = tuple((20, i) for i in range(1, 8))
+AVOID = tuple((20, i) for i in range(1, 8)) + ((19, 1),)   # Route 28 (Silver Cave): its gate guard lets the player by only after the Johto story
 def tour(b, target, visit=True, hops=60, skipmaps=()):
     """travel hop by hop; on each new map talk to everyone (trainers, people) and print what happened"""
     if not hasattr(b, 'seen'): b.seen = set()
@@ -156,6 +156,7 @@ def tour(b, target, visit=True, hops=60, skipmaps=()):
             b.g.save_state(ST % ('%s_%d_%d' % (b.tag, k[0], k[1])))
         if k == target: return True
         if LIVE[0]: live_grid(b)
+        if REPEL[0]: __import__('honest').use_repel(b)
         p = b.plan(target, AVOID)
         if not p: print('no plan', k, flush=True); return False
         k0, kind, arg, d = p[0]
@@ -222,7 +223,7 @@ def sgoto(b, tx, ty, tries=60):
         k2, x, y = b.where()
         if k2 != k: return False
         if (x, y) == (tx, ty): return True
-        blk = set(b.objpos()) | bad | ({(w[0], w[1]) for w in b.db.warps(k)} - {(tx, ty)})
+        blk = (set(b.objpos()) | {(o[2] - 4, o[1] - 4) for o in b.db.objs(k)} | bad | ({(w[0], w[1]) for w in b.db.warps(k)} - {(tx, ty)})) - {(tx, ty)}   # (people off screen too)
         prev = {(x, y): None}; q = deque([(x, y)]); found = False
         while q:
             p = q.popleft()
@@ -541,3 +542,94 @@ def region_go(b, target, cells, maps, steps=20):
         if not p: return True
         k, wx, wy = p[0]; b.go_warp_xy(wx, wy); b.clear_text(shots=False); ev(b, 10)
     return False
+
+# ---- Strength boulders (Victory Road): a small Sokoban search over the live grid
+SPR_BOULDER = 0x5A
+REPEL = [False]      # keep a Max Repel working (Victory Road)
+def boulder_plan(b, boulders, goal, others=(), limit=60000):
+    """pushes [(bx, by, d)] that bring one of the boulders onto `goal` (or None)"""
+    import bot as _b
+    from collections import deque
+    k, x, y = b.where(); G = _b.grid_of(b.db.r, b.db.maps[k]['hdr'])
+    warps = {(w[0], w[1]) for w in b.db.warps(k)        # (a carpet: stand on it; a floor arrival spot: not a warp at all)
+             if 0x70 <= G[w[1]][w[0]] <= 0x7F and G[w[1]][w[0]] not in (0x70, 0x76, 0x78, 0x7E)}
+    def free(c, bs): return (0 <= c[1] < len(G) and 0 <= c[0] < len(G[0]) and G[c[1]][c[0]] in _b.WALK
+                            and c not in bs and c not in others)
+    def region(p, bs):
+        seen = {p}; q = deque([p])
+        while q:
+            c = q.popleft()
+            for d, (dx, dy) in (('U', (0, -1)), ('D', (0, 1)), ('L', (-1, 0)), ('R', (1, 0))):
+                n = (c[0] + dx, c[1] + dy)
+                if n in seen or not free(n, bs) or n in warps: continue
+                if _b.wall_block(G, c[0], c[1], n[0], n[1], d): continue
+                seen.add(n); q.append(n)
+        return seen
+    D = {'U': (0, -1), 'D': (0, 1), 'L': (-1, 0), 'R': (1, 0)}
+    start = (frozenset(boulders), (x, y))
+    R0 = region((x, y), start[0]); key0 = (start[0], min(R0))
+    prev = {key0: None}; q = deque([(start[0], R0, key0)])
+    while q and len(prev) < limit:
+        bs, R, kk = q.popleft()
+        if goal in bs:
+            path = []
+            while prev[kk]: kk, act = prev[kk]; path.append(act)
+            return path[::-1]
+        for (bx, by) in bs:
+            for d, (dx, dy) in D.items():
+                if (bx - dx, by - dy) not in R: continue
+                t = (bx + dx, by + dy)
+                if t != goal and (not free(t, bs) or t in warps): continue     # (the goal may be a hole)
+                if _b.wall_block(G, bx, by, t[0], t[1], d): continue
+                nb = frozenset(bs - {(bx, by)} | {t}); R2 = region((bx, by), nb); k2 = (nb, min(R2))
+                if k2 in prev: continue
+                prev[k2] = (kk, (bx, by, d)); q.append((nb, R2, k2))
+    return None
+def push_boulders(b, boulders, goal, others=(), minhp=0.55):
+    """carry out boulder_plan: walk behind the boulder, use Strength (A on it: yes), push"""
+    D = {'U': (0, -1), 'D': (0, 1), 'L': (-1, 0), 'R': (1, 0)}
+    live_grid(b)
+    p = boulder_plan(b, boulders, goal, others)
+    print('  boulder plan to', goal, None if p is None else len(p), flush=True)
+    if p is None: return None
+    bs = set(boulders)
+    import honest as _H
+    k0map = b.where()[0]
+    for (bx, by, d) in p:
+        p0 = _H.party(b)[0]
+        if p0['hp'] < p0['maxhp'] * minhp:
+            print('  boulders: the lead is worn out', p0['hp'], flush=True); return 'heal'
+        dx, dy = D[d]; sx, sy = bx - dx, by - dy; moved = False
+        if REPEL[0]: _H.use_repel(b)
+        for attempt in range(6):
+            if b.in_battle(): b.battle()
+            if b.textbox(): ev(b, 10)
+            p0 = _H.party(b)[0]
+            if p0['hp'] < p0['maxhp'] * minhp or b.where()[0] != k0map:
+                print('  boulders: the lead is worn out', p0['hp'], b.where(), flush=True); return 'heal'
+            if not safe_goto(b, sx, sy, block=bs | set(others), tries=12, allow={(sx, sy)}):
+                continue
+            b.face(d); b.wait(10)
+            b.press('A', 40)                      # 「かいりきを つかいますか？」 -> はい (or its text when already used)
+            for i in range(8):
+                if b.in_battle(): break
+                if b.has('はい') and b.has('いいえ'): b.press('A', 40); continue
+                if b.textbox(): b.press('A', 30); continue
+                break
+            if b.in_battle(): continue
+            for t in range(3):
+                b.g.down(d); b.wait(8); b.g.up(d)
+                for w in range(10):                    # the boulder slides for a while: wait until it stands still
+                    b.wait(12); op = b.objpos()
+                    if (bx, by) not in op: break
+                b.wait(30)
+                if b.in_battle(): break
+                if b.textbox(): ev(b, 10)
+                op = b.objpos()
+                if (bx, by) not in op: moved = (bx + dx, by + dy) in op or True; break
+            if moved: break
+        if not moved:
+            print('  boulder did not move', (bx, by), d, b.where(), b.objpos(), flush=True); return False
+        bs.discard((bx, by)); bs.add((bx + dx, by + dy))
+        live_grid(b)
+    return True

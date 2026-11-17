@@ -306,6 +306,8 @@ def _sheet(s, tag, cols=6):
 Bot.sheet = _sheet
 
 def _flag(s, f):
+    if f >= 0x800:                                  # this MOD's extended flags (phase 15): DA01-DA5E
+        s.bank1(); return s.peek(0xDA01 + ((f - 0x800) >> 3))[0] >> (f & 7) & 1
     return s.peek(0xDA65 + (f >> 3))[0] >> (f & 7) & 1
 Bot.flag = _flag
 
