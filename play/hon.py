@@ -111,7 +111,10 @@ def tour2(b, *a, **k):
 P.tour = tour2; tour = tour2
 _tr2 = _bot.Bot.travel
 def travel3(s, *a, **k):
-    leave_pc2f(s); return _tr2(s, *a, **k)
+    leave_pc2f(s)
+    if s.where()[0] in P.MANSION_REPL and s.mapk(a[0]) not in P.MANSION_REPL:   # out of the Mansion: its switches
+        P.mansion_solve(s, (26, 57), cells=[(5, 26), (6, 26), (26, 26), (27, 26)])
+    return _tr2(s, *a, **k)
 _bot.Bot.travel = travel3
 
 # --- the old helpers become honest
@@ -377,8 +380,12 @@ def cinnabar(b):
 def mansion(b):
     train(b); H.heal_pc(b)
     P.LIVE[0] = True
-    r = P.solve_to(b, (26, 60)); print('mansion b1f', r, b.where(), flush=True)
-    talk_map(b); ev(b, 20)
+    r = P.mansion_solve(b, (26, 60)); print('mansion b1f', r, b.where(), flush=True)
+    kx, ky = 5, 13                                   # Red: the Secret Key's ball on B1F
+    r = P.mansion_solve(b, (26, 60), cells=[(kx + 1, ky), (kx - 1, ky), (kx, ky + 1), (kx, ky - 1)])
+    print('mansion key reachable', r, b.where(), flush=True)
+    b.talk_to(kx, ky); ev(b, 20)
+    print('took the key ball', b.where(), flush=True)
     P.LIVE[0] = False
 @stage
 def blaine(b):
@@ -392,6 +399,50 @@ def blaine(b):
         print('blaine retry', t, b.where(), flush=True); H.heal_pc(b); b.seen.discard((26, 61))
     P.LIVE[0] = False
     if badges(b) < 6: issue('no Volcano Badge')
+
+ROOF = (26, 131)                                                   # Celadon Dept. Store roof (Red's map, phase 41)
+def buy_drink(b):
+    """the roof's vending machine: おいしいみず (the first row)"""
+    if not tour(b, ROOF): issue('Dept. Store roof not reached', b.where()); return False
+    for t in range(3):
+        if P.safe_goto(b, 10, 2): break
+    b.face('U'); b.press('A', 60)
+    for i in range(8):
+        if b.has('やめる'): break
+        b.press('A', 50)
+    if not b.has('やめる'): issue('vending machine menu not shown', b.where()); return False
+    b.press('A', 60)
+    for i in range(12):
+        if b.has('やめる'): break
+        b.press('A', 50)
+    ok = b.has('やめる'); b.press('B', 40); ev(b, 10)
+    print('bought a drink', ok, flush=True); return ok
+@stage
+def saffron(b):
+    train(b); H.heal_pc(b)
+    gates = [k for k in b.db.maps if k[0] == 26 and any((w[3], w[4]) == b.mapk('SaffronCity') for w in b.db.warps(k))]
+    old = P.AVOID; P.AVOID = P.AVOID + tuple(gates) + (b.mapk('SaffronCity'),)
+    buy_drink(b); P.AVOID = old
+    r = tour(b, 'SaffronCity'); print('-> saffron', r, b.where(), flush=True)
+    if not r: issue('Saffron not reached (the guards?)', b.where()); return
+    P.SKIPGYM[0] = True; visit_town(b, 'SaffronCity', skip=[(25, 10)])
+SILPH = {f: (26, 24 + f) for f in range(2, 12)}; SILPH[1] = (25, 10)
+@stage
+def silph(b):
+    train(b, 2); H.heal_pc(b)
+    P.LIVE[0] = True; P.DOORS[0] = True
+    for p in range(2):
+        for f in range(1, 12):
+            r = tour(b, SILPH[f]); print('### silph floor', f, r, b.where(), flush=True)
+            if r: talk_map(b); ev(b, 10)
+        b.seen -= set(SILPH.values())
+    P.LIVE[0] = False; P.DOORS[0] = False
+@stage
+def sabrina(b):
+    if badges(b) >= 7: return
+    train(b, 2); H.heal_pc(b); P.SKIPGYM[0] = False
+    gym_try(b, 'SaffronGym')
+    if badges(b) < 7: issue('no Marsh Badge')
 
 def gym_try(b, gym, tries=3):
     """the gym's trainers and leader; after a loss (or a worn-out lead) heal and go again"""

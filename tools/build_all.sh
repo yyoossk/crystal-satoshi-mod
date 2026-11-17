@@ -109,5 +109,6 @@ python3 build_phase109.py ../build/p108.gbc ../build/p109.gbc ../build/p109.ips 
 python3 build_phase110.py ../build/p109.gbc ../build/p110.gbc ../build/p110.ips   # 2026/11/16 の 報告（ショップ・どく・マサキの 電話・連れ歩きの 列・ほか）
 python3 build_phase111.py ../build/p110.gbc ../build/p111.gbc ../build/p111.ips   # ゲートの 入口の 横の かべ
 python3 build_phase112.py ../build/p111.gbc ../build/p112.gbc ../build/p112.ips   # カントーの ジムを 赤の 部屋に
-cp ../build/p112.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase113.py ../build/p112.gbc ../build/p113.gbc ../build/p113.ips   # なみのりで マップの つなぎめを こえる
+cp ../build/p113.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"

@@ -23,6 +23,8 @@ def make_test_rom(src=SC + '/build/p63.gbc'):
     return TEST
 
 
+SAFESTEP = [False]
+SKIPFLOORWARP = [False]
 class Bot:
     def __init__(s, state=None, sav=None, out='run', rom=None):
         s.g = GR(rom or TEST, state=state, sav=sav)
@@ -101,7 +103,14 @@ class Bot:
             for f in range(14):
                 s.wait(2)
                 if s.peek(W_MAP, 4) != p0: moved = True; break
+                if SAFESTEP[0] and f == 1: s.g.up(d)
             s.g.up(d); s.wait(16 if moved else 4)
+            if not moved and SAFESTEP[0] and not s.textbox():   # the follower in front: holding the key swaps places
+                s.g.down(d)
+                for f in range(20):
+                    s.wait(2)
+                    if s.peek(W_MAP, 4) != p0: moved = True; break
+                s.g.up(d); s.wait(16 if moved else 4)
             ok = ok and moved
         return ok
 
@@ -381,6 +390,17 @@ def _cross(s, d, hint=None):
             for i in range(3):
                 s.step(d); s.wait(30)
                 if s.where()[0] != k: s.wait(40); return True
+                k1_, x1_, y1_ = s.where()
+                if k1_ == k and CAN_SURF[0] and 0 <= y1_ < H and 0 <= x1_ < W and G[y1_][x1_] not in WATER and not s.in_battle():
+                    # the next map's edge is water (Cinnabar -> Route 20): Surf from the shore across the connection
+                    s.face(d); s.press('A', 60)
+                    for i_ in range(6):
+                        if s.has('はい'): break
+                        s.press('A', 40)
+                    s.press('A', 60); s.clear_text(shots=False); s.wait(60); print('  surf at the edge', s.where(), flush=True)
+                    if s.where()[0] != k: s.wait(40); return True
+                    s.step(d); s.wait(30)
+                    if s.where()[0] != k: s.wait(40); return True
     s.log.append('cross failed %s %s' % (k, d)); return False
 Bot.cross = _cross
 
@@ -456,6 +476,7 @@ def _hops(s, k, starts):
     near = lambda x, y: any((x + dx, y + dy) in R for dx, dy in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)))
     for i, (wx, wy, idx, g, m) in enumerate(s.db.warps(k)):
         if (g, m) not in s.db.maps or not near(wx, wy): continue
+        if SKIPFLOORWARP[0] and 0 <= wy < len(G) and 0 <= wx < len(G[0]) and G[wy][wx] == 0: continue
         dw = s.db.warps((g, m))
         if idx - 1 >= len(dw): continue
         ax, ay = dw[idx - 1][:2]

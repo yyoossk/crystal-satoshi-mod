@@ -1,10 +1,11 @@
 """playthrough check: new game -> Pewter Gym, walking only (no warps / pokes)"""
+import os
 import sys; sys.path.insert(0,'play')
 from t64a import *
 from kt import sheet, uniq, seq
 import bot as _bot
 _bot.NOHEAL[0] = True
-ROM = 'p112'
+ROM = os.environ.get('PTROM', 'p113')
 make_test_rom(SC+'/build/%s.gbc' % ROM)
 ST = SC + '/play/pt_%s.st'
 def B(prev, tag):
@@ -392,11 +393,100 @@ def solve_to(b, target, rounds=8):
             if tour(b, target): return True
         k = b.where()[0]
         sw = switches(b); print('  no plan from', b.where(), 'switches', sw, flush=True)
-        if not sw: return False
         pressed = False
         for s in sw:
             if press_switch(b, *s):
                 pressed = True; live_grid(b)
                 if b.plan(target, AVOID): break
+        if not pressed:
+            # this floor's switches are out of reach: go to another floor of the same building and press its switch
+            # (the Pokémon Mansion's switches all toggle the same flag)
+            here = b.where()[0]; tk = b.mapk(target)
+            near = []
+            for m in SWITCH_MAPS:
+                if m == here: continue
+                pl = b.plan(m, AVOID)
+                if pl: near.append((len(pl), m))
+            for _, m in sorted(near):
+                if not tour(b, m): continue
+                live_grid(b)
+                for s in switches(b):
+                    if press_switch(b, *s): pressed = True; print('  pressed a switch on', b.where(), flush=True); break
+                if pressed:
+                    for m2 in SWITCH_MAPS:         # the other floors' blocks change too: forget their cached grids
+                        _bot._GC.pop(b.db.maps[m2]['hdr'], None)
+                    break
         if not pressed: return False
     return b.where()[0] == b.mapk(target)
+SWITCH_MAPS = [(26, 57), (26, 58), (26, 59), (26, 60)]
+
+# ---- the Pokémon Mansion: plan over (floor, switch on/off) with the floors' blocks as Red's scripts set them
+MANSION_REPL = {  # map: (switch off, switch on) [(block x, block y, block)]  (pokered scripts/PokemonMansion*.asm)
+    (26, 57): ([(12, 6, 0x0E), (8, 3, 0x2D), (10, 8, 0x2D), (13, 13, 0x2D)], [(12, 6, 0x2D), (8, 3, 0x0E), (10, 8, 0x0E), (13, 13, 0x0E)]),
+    (26, 58): ([(4, 2, 0x0E), (9, 4, 0x54), (3, 11, 0x5F)], [(4, 2, 0x5F), (9, 4, 0x0E), (3, 11, 0x0E)]),
+    (26, 59): ([(7, 2, 0x0E), (7, 5, 0x5F)], [(7, 2, 0x5F), (7, 5, 0x0E)]),
+    (26, 60): ([(13, 8, 0x0E), (6, 11, 0x0E), (4, 3, 0x5F), (8, 8, 0x54)], [(13, 8, 0x2D), (6, 11, 0x5F), (4, 3, 0x0E), (8, 8, 0x0E)])}
+MANSION_ARRIVE = {((26, 57), 16, 14), ((26, 58), 18, 14)}   # where the 3F holes land (not warps)
+def mansion_grid(b, k, on):
+    import bot as _b
+    r = b.db.r; h = b.db.maps[k]['hdr']; a = _b._attrs(r, h); w, hh = a['w'], a['h']
+    bo = a['blkbank'] * 0x4000 + a['blk'] - 0x4000
+    blk = {(i % w, i // w): r[bo + i] for i in range(w * hh)}
+    for x, y, v in MANSION_REPL[k][on]: blk[(x, y)] = v
+    co = _b._PM.Tilesets(r, _b._Space(r)).coll_off(r[h + 1])
+    G = _b._Grid([0] * (2 * w) for _ in range(2 * hh))
+    for (bx, by), v in blk.items():
+        for q in range(4): G[2 * by + q // 2][2 * bx + q % 2] = r[co + 4 * v + q]
+    return G
+def mansion_state(b):
+    k = b.where()[0]; L = live_grid(b)
+    for on in (0, 1):
+        if [list(r) for r in mansion_grid(b, k, on)] == [list(r) for r in L]: return on
+    d = [sum(x != y for r1, r2 in zip(mansion_grid(b, k, on), L) for x, y in zip(r1, r2)) for on in (0, 1)]
+    return 0 if d[0] <= d[1] else 1
+def mansion_plan(b, target, on, cells=None):
+    import bot as _b
+    from collections import deque
+    k, x, y = b.where(); GG = {}
+    def G(k, on):
+        if (k, on) not in GG: GG[(k, on)] = mansion_grid(b, k, on)
+        return GG[(k, on)]
+    def node(k, on, starts):
+        R = _b._reach_set(G(k, on), list(starts)); return (k, on, min(R)), R
+    n0, R0 = node(k, on, [(x, y)]); prev = {n0: None}; q = deque([(n0, R0)])
+    while q:
+        n, R = q.popleft(); k, on, _ = n
+        if k == target and (not cells or any(c in R for c in cells)):
+            path = []
+            while prev[n]: p, act = prev[n]; path.append(act); n = p
+            return path[::-1]
+        near = lambda x, y: any((x + dx, y + dy) in R for dx, dy in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)))
+        nxt = []
+        for i, (wx, wy, idx, g, m) in enumerate(b.db.warps(k)):
+            if (k, wx, wy) in MANSION_ARRIVE: continue
+            if (g, m) not in MANSION_REPL or not near(wx, wy) or idx - 1 >= len(b.db.warps((g, m))): continue
+            ax, ay = b.db.warps((g, m))[idx - 1][:2]
+            nxt.append((('warp', k, wx, wy, on), (g, m), on, [(ax, ay)]))
+        for sx, sy in [(c[1], c[0]) for _, c in b.db.maps[k]['ev']['bgs'] if c[2] == 1]:
+            if (sx, sy + 1) in R: nxt.append((('press', k, sx, sy, on), k, 1 - on, [(sx, sy + 1)]))
+        for act, k2, on2, st in nxt:
+            n2, R2 = node(k2, on2, st)
+            if n2 not in prev: prev[n2] = (n, act); q.append((n2, R2))
+    return None
+def mansion_solve(b, target=(26, 60), steps=40, cells=None):
+    import bot as _b
+    for i in range(steps):
+        k = b.where()[0]
+        if k == target and (not cells or (on_ := mansion_state(b)) is not None and
+                            any(c in __import__('bot')._reach_set(mansion_grid(b, k, on_), [b.where()[1:]]) for c in cells)): return True
+        if k not in MANSION_REPL: tour(b, (26, 57)); continue
+        on = mansion_state(b); p = mansion_plan(b, target, on, cells)
+        print('  mansion', b.where(), 'switch', on, 'plan', [a[0] + str(a[2:4]) for a in (p or [])], flush=True)
+        if not p: return False
+        for m in MANSION_REPL: _b._GC[b.db.maps[m]['hdr']] = mansion_grid(b, m, on)
+        a = p[0]
+        if a[0] == 'warp': b.go_warp_xy(a[2], a[3])
+        else: press_switch(b, a[2], a[3])
+        b.clear_text(shots=False); ev(b, 10)
+        print('   ->', a[0], a[2:4], 'now', b.where(), flush=True)
+    return b.where()[0] == target
