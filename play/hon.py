@@ -29,8 +29,8 @@ def travel(s, *a, **k):
 _bot.Bot.travel = travel
 _ob = _bot.Bot.battle
 def _bt(s, *a, **k):
-    t = time.time(); r = _ob(s, *a, **k); p = H.party(s)
-    print('  battle %.0fs lv%d hp%d/%d %s' % (time.time() - t, p[0]['level'], p[0]['hp'], p[0]['maxhp'], s.where()), flush=True); return r
+    t = time.time(); e = s.peek(H.EMON, 14); r = _ob(s, *a, **k); p = H.party(s)
+    print('  battle %.0fs lv%d hp%d/%d %s vs %d lv%d' % (time.time() - t, p[0]['level'], p[0]['hp'], p[0]['maxhp'], s.where(), e[0], e[13]), flush=True); return r
 _bot.Bot.battle = _bt
 _oh = H.heal_pc
 def _hp(b, *a):
@@ -421,7 +421,7 @@ def buy_drink(b):
 def saffron(b):
     train(b); H.heal_pc(b)
     gates = [k for k in b.db.maps if k[0] == 26 and any((w[3], w[4]) == b.mapk('SaffronCity') for w in b.db.warps(k))]
-    old = P.AVOID; P.AVOID = P.AVOID + tuple(gates) + (b.mapk('SaffronCity'),)
+    old = P.AVOID; P.AVOID = P.AVOID + tuple(gates) + (b.mapk('SaffronCity'), (6, 5), (6, 6))   # Routes 19/20: Seafoam's boulders (later)
     buy_drink(b); P.AVOID = old
     r = tour(b, 'SaffronCity'); print('-> saffron', r, b.where(), flush=True)
     if not r: issue('Saffron not reached (the guards?)', b.where()); return
@@ -429,14 +429,37 @@ def saffron(b):
 SILPH = {f: (26, 24 + f) for f in range(2, 12)}; SILPH[1] = (25, 10)
 @stage
 def silph(b):
+    if 0x39 not in H.party(b)[0]['moves']: H.teach(b, 3, 0)     # the lead gets Surf (its weakest move goes)
     train(b, 2); H.heal_pc(b)
     P.LIVE[0] = True; P.DOORS[0] = True
-    for p in range(2):
+    tour(b, SILPH[5])                                  # 5F: the Card Key (its talks may step on a pad: go back for it)
+    P.region_go(b, SILPH[5], [(21, 17), (20, 16), (22, 16), (21, 15)], set(SILPH.values()) | {(26, 36)})
+    print('card key ball', pick_ball(b, 21, 16), b.where(), flush=True)
+    for p in range(1):
         for f in range(1, 12):
             r = tour(b, SILPH[f]); print('### silph floor', f, r, b.where(), flush=True)
             if r: talk_map(b); ev(b, 10)
         b.seen -= set(SILPH.values())
+    silph_gio(b)
     P.LIVE[0] = False; P.DOORS[0] = False
+def pick_ball(b, x, y):
+    """walk next to an item ball without touching warp tiles (pads) and pick it up"""
+    k = b.where()[0]
+    still = {(o[2] - 4, o[1] - 4) for o in b.db.objs(k)} - {(x, y)}     # people standing still (off screen too)
+    for (dx, dy, d) in ((0, 1, 'U'), (0, -1, 'D'), (1, 0, 'L'), (-1, 0, 'R')):
+        if P.safe_goto(b, x + dx, y + dy, block=still, tries=15):
+            b.face(d); b.press('A', 40); ev(b, 20); return (x, y) not in b.objpos()
+    return False
+def silph_gio(b):
+    """11F's boardroom (Giovanni) is reached only by 7F's warp pad (as in Red): the stairs / elevator end in a corridor"""
+    # Red's way: 3F's pad (11,11) -> 7F (5,3), the pad (5,7) -> 11F (3,2): the room of 11F with Giovanni's door
+    P.region_go(b, SILPH[11], [(3, 3), (2, 2), (4, 2), (3, 1)], set(SILPH.values()) | {(26, 36)})
+    print('-> 11F', b.where(), flush=True)
+    if b.where()[0] != SILPH[11]: issue('Silph 7F pad to 11F not reached', b.where()); return
+    P.live_grid(b); P.open_doors(b); P.live_grid(b)
+    talk_map(b); ev(b, 30)
+    print('after 11F', b.where(), b.objpos(), flush=True)
+    if (6, 9) in b.objpos(): issue('Giovanni still in Silph Co. 11F')
 @stage
 def sabrina(b):
     if badges(b) >= 7: return

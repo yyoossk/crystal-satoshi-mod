@@ -87,6 +87,7 @@ def forget_weakest(s, moves, types=()):
         s.wait(6)
     ws = min(range(4), key=lambda i: (moves[i] in HM_MOVE.values(), mscore(moves[i], types)))
     nm = NEW_MOVE[0]; NEW_MOVE[0] = None
+    print('  forget? new', nm, 'weakest', moves[ws], flush=True)
     if nm and mscore(nm, types) <= mscore(moves[ws], types):      # not better than what it knows: give it up
         s.wait(10); s.press('A', 60)                                  # いいえ -> 「あきらめますか？」
         for i in range(30):
@@ -228,7 +229,7 @@ def grind(b, target, area, spot=None, maxbattles=400):
 
 # ---------------------------------------------------------------- menus
 TMHM = 0xD84C                     # wTMsHMs (50 TMs, 7 HMs)
-HM_MOVE = {1: 0x0F, 2: 0x13, 3: 0x39, 4: 0x46, 5: 0x94, 6: 0x7F, 7: 0x91}   # Cut Fly Surf Strength Flash Whirlpool Waterfall
+HM_MOVE = {1: 0x0F, 2: 0x13, 3: 0x39, 4: 0x46, 5: 0x94, 6: 0xFA, 7: 0x7F}   # Cut Fly Surf Strength Flash Whirlpool Waterfall
 def has_hm(b, n): b.bank1(); return b.peek(TMHM + 49 + n)[0] > 0
 def knows(b, move): return [i for i, q in enumerate(party(b)) if move in q['moves']]
 def close_menus(b):

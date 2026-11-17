@@ -469,6 +469,7 @@ def _edge_cells(G, d):
     else: c = [(W - 1, i) for i in range(H)]
     return [p for p in c if _ok_cell(G, p[0], p[1])]
 
+SKIPWARPS = {((21, 4), 39, 19)}      # Celadon: Red's inaccessible warp into the Dept. Store 5F (a wall)
 OPP = {'N': 'S', 'S': 'N', 'W': 'E', 'E': 'W'}
 def _hops(s, k, starts):
     """possible moves from map k when standing anywhere in starts: [(kind, arg, dest, dest_starts)]"""
@@ -476,6 +477,7 @@ def _hops(s, k, starts):
     near = lambda x, y: any((x + dx, y + dy) in R for dx, dy in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)))
     for i, (wx, wy, idx, g, m) in enumerate(s.db.warps(k)):
         if (g, m) not in s.db.maps or not near(wx, wy): continue
+        if (k, wx, wy) in SKIPWARPS: continue
         if SKIPFLOORWARP[0] and 0 <= wy < len(G) and 0 <= wx < len(G[0]) and G[wy][wx] == 0: continue
         dw = s.db.warps((g, m))
         if idx - 1 >= len(dw): continue

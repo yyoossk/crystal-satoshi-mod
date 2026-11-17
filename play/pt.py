@@ -490,3 +490,43 @@ def mansion_solve(b, target=(26, 60), steps=40, cells=None):
         b.clear_text(shots=False); ev(b, 10)
         print('   ->', a[0], a[2:4], 'now', b.where(), flush=True)
     return b.where()[0] == target
+
+# ---- region-aware planning inside a building (Silph Co.'s pads, rooms behind doors): which floor *and which room*
+def region_plan(b, target, cells, maps):
+    import bot as _b
+    from collections import deque
+    k, x, y = b.where()
+    def node(k, starts):
+        G0 = _b.grid_of(b.db.r, b.db.maps[k]['hdr']); G = _b._Grid([list(r) for r in G0])
+        stop = {(w[0], w[1]) for w in b.db.warps(k)} | {(o[2] - 4, o[1] - 4) for o in b.db.objs(k)}   # pads move you on; people stand
+        for (sx, sy) in stop - set(starts):
+            if 0 <= sy < len(G) and 0 <= sx < len(G[0]): G[sy][sx] = 0x07
+        R = _b._reach_set(G, list(starts)); return (k, min(R), len(R)), R      # (a pad's landing spot reaches more)
+    n0, R0 = node(k, [(x, y)]); prev = {n0: None}; q = deque([(n0, R0)])
+    while q:
+        n, R = q.popleft(); k = n[0]
+        if k == target and any(c in R for c in cells):
+            path = []
+            while prev[n]: p, act = prev[n]; path.append(act); n = p
+            return path[::-1]
+        near = lambda x, y: any((x + dx, y + dy) in R for dx, dy in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)))
+        for wx, wy, idx, g, m in b.db.warps(k):
+            if (g, m) not in maps or not near(wx, wy) or idx - 1 >= len(b.db.warps((g, m))): continue
+            ax, ay = b.db.warps((g, m))[idx - 1][:2]
+            n2, R2 = node((g, m), [(ax, ay)])
+            if n2 not in prev: prev[n2] = (n, (k, wx, wy)); q.append((n2, R2))
+    return None
+def region_go(b, target, cells, maps, steps=20):
+    """walk floor by floor (pads, stairs) to the room of `target` that holds one of `cells`"""
+    for i in range(steps):
+        if b.where()[0] not in maps:
+            entry = [m for m in maps if any((w[3], w[4]) == m for w in b.db.warps(b.mapk('SaffronCity')))]
+            tour(b, entry[0] if entry else target, visit=False)
+        live_grid(b)
+        if DOORS[0]: open_doors(b)
+        p = region_plan(b, target, cells, maps)
+        print('  region', b.where(), None if p is None else [a[1:] for a in p], flush=True)
+        if p is None: return False
+        if not p: return True
+        k, wx, wy = p[0]; b.go_warp_xy(wx, wy); b.clear_text(shots=False); ev(b, 10)
+    return False
