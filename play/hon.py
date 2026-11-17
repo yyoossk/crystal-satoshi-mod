@@ -100,6 +100,20 @@ def _gt(s, *a, **k):
     return _og(s, *a, **k)
 _bot.Bot.goto = _gt
 
+# --- the Pokémon Center 2F (Crystal's link room): its stairs lead back to whichever center, which the planner can't see
+PC2F = (20, 1)
+def leave_pc2f(b):
+    if b.where()[0] == PC2F:
+        w = b.db.warps(PC2F)[0]; b.go_warp_xy(w[0], w[1]); b.wait(40); print('left PC 2F', b.where(), flush=True)
+_tour = P.tour
+def tour2(b, *a, **k):
+    leave_pc2f(b); return _tour(b, *a, **k)
+P.tour = tour2; tour = tour2
+_tr2 = _bot.Bot.travel
+def travel3(s, *a, **k):
+    leave_pc2f(s); return _tr2(s, *a, **k)
+_bot.Bot.travel = travel3
+
 # --- the old helpers become honest
 P.maxparty = lambda b, *a, **k: None
 P.fast = lambda b, *a, **k: None
@@ -125,6 +139,7 @@ def run(name, prev):
     t0 = time.time(); print('#### stage', name, 'from', prev, b.where(), [(q['species'], q['level']) for q in H.party(b)], flush=True)
     if H.has_hm(b, 1): H.honest_hms(b, cut=True)          # the bot may cut trees once a party member knows Cut
     if H.has_hm(b, 3) and H.badges_ok_surf(b): H.honest_hms(b, cut=True, surf=True)
+    if H.has_hm(b, 4) and badges(b) >= 4: H.honest_hms(b, cut=True, surf=H.has_hm(b, 3) and H.badges_ok_surf(b), strength=True)
     f(b)
     b.g.save_state(HST % name)
     print('#### end', name, b.where(), mus(b), 'badges', badges(b), [(q['species'], q['level']) for q in H.party(b)],
@@ -140,7 +155,7 @@ def pewter(b):
 def brock(b):
     if badges(b) >= 1: return
     train(b, 2); H.heal_pc(b)
-    tour(b, 'PewterGym'); talk_map(b); ev(b, 40)
+    gym_try(b, 'PewterGym')
     if badges(b) < 1: issue('no Boulder Badge after the Pewter Gym')
 @stage
 def mtmoon(b):
@@ -154,7 +169,7 @@ def cerulean(b):
 def misty(b):
     if badges(b) >= 2: return
     train(b, 2); H.heal_pc(b)
-    tour(b, 'CeruleanGym'); talk_map(b); ev(b, 40)
+    gym_try(b, 'CeruleanGym')
     if badges(b) < 2: issue('no Cascade Badge')
 
 @stage
@@ -253,7 +268,7 @@ def celadon(b):
 def erika(b):
     if badges(b) >= 4: return
     train(b, 2); H.honest_hms(b, cut=True); H.heal_pc(b)
-    tour(b, 'CeladonGym'); talk_map(b); ev(b, 40)
+    gym_try(b, 'CeladonGym')
     if badges(b) < 4: issue('no Rainbow Badge')
 
 @stage
@@ -331,8 +346,62 @@ def fuchsia(b):
 def koga(b):
     if badges(b) >= 5: return
     train(b, 2); H.heal_pc(b)
-    tour(b, 'FuchsiaGym'); talk_map(b); ev(b, 40)
+    gym_try(b, 'FuchsiaGym')
     if badges(b) < 5: issue('no Soul Badge')
+
+@stage
+def safari(b):
+    train(b); H.heal_pc(b)
+    tour(b, (26, 87)); ev(b, 30); print('gate', b.where(), flush=True)
+    b.seen |= {(26, 88), (26, 89), (26, 90), (26, 91), (26, 92), (26, 93), (26, 95), (26, 97), (26, 98)}
+    r = tour(b, (26, 94)); print('west', r, b.where(), flush=True)
+    r = tour(b, (26, 96)); print('house', r, b.where(), flush=True)
+    for i in range(4): ev(b, 20)
+    if not H.has_hm(b, 3): issue('no HM03 (Surf) from the Safari Zone house', b.where())
+    for i in range(3):
+        if b.where()[0] == (26, 96) or b.where()[0][0] == 26 and 87 <= b.where()[0][1] <= 98:
+            tour(b, 'FuchsiaCity', visit=False)
+    b.travel((17, 12)); b.wait(20); b.talk_to(2, 4, n=0); ev(b, 30)
+    if not H.has_hm(b, 4): issue('no HM04 (Strength) from the warden (Gold Teeth?)', b.where())
+
+@stage
+def cinnabar(b):
+    train(b); H.heal_pc(b)
+    # by sea from Pallet Town (Route 21); Route 20 is cut in two by the Seafoam Islands (their boulders: later)
+    old = P.AVOID; P.AVOID = P.AVOID + ((25, 2), (6, 5), (6, 6))
+    r = b.where()[0] == b.mapk('CinnabarIsland') or tour(b, 'CinnabarIsland'); print('cinnabar', r, b.where(), P.mus(b), flush=True)
+    P.AVOID = old
+    if not r: issue('Cinnabar Island not reached', b.where()); return
+    visit_town(b, 'CinnabarIsland', skip=[(26, 61)])            # the gym (locked: the Secret Key)
+@stage
+def mansion(b):
+    train(b); H.heal_pc(b)
+    P.LIVE[0] = True
+    r = P.solve_to(b, (26, 60)); print('mansion b1f', r, b.where(), flush=True)
+    talk_map(b); ev(b, 20)
+    P.LIVE[0] = False
+@stage
+def blaine(b):
+    if badges(b) >= 6: return
+    train(b, 2); H.heal_pc(b); P.LIVE[0] = True
+    for t in range(4):
+        tour(b, (26, 61)); talk_map(b); read_signs(b); ev(b, 30)
+        for p, d in [((3, 4), 'U'), ((4, 3), 'L'), ((2, 3), 'R')]:
+            if P.safe_goto(b, *p): b.face(d); b.press('A', 40); ev(b, 40); break
+        if badges(b) >= 6: break
+        print('blaine retry', t, b.where(), flush=True); H.heal_pc(b); b.seen.discard((26, 61))
+    P.LIVE[0] = False
+    if badges(b) < 6: issue('no Volcano Badge')
+
+def gym_try(b, gym, tries=3):
+    """the gym's trainers and leader; after a loss (or a worn-out lead) heal and go again"""
+    n0 = badges(b)
+    for t in range(tries):
+        tour(b, gym); talk_map(b); ev(b, 40)
+        if badges(b) > n0: return True
+        print('gym retry', gym, t, b.where(), flush=True); H.heal_pc(b)
+        b.seen.discard(b.mapk(gym))
+    return False
 
 def solve_cans(b):
     from jpchar import decode

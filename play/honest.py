@@ -35,14 +35,14 @@ def party(b):
                         status=p[0x20], hp=p[0x22] << 8 | p[0x23], maxhp=p[0x24] << 8 | p[0x25]))
     return out
 
-def best_move(b):
+def best_move(b, exclude=()):
     m = b.peek(BMON, 0x20); e = b.peek(EMON, 0x20)
     my = (m[0x1E], m[0x1F]); et = (e[0x1E], e[0x1F])
     best, bi = -1, 0
     for i in range(4):
         mv = m[2 + i]
         if not mv: continue
-        if (m[8 + i] & 0x3F) == 0: continue
+        if (m[8 + i] & 0x3F) == 0 or i in exclude: continue
         d = move(mv); p = d['power']
         if p <= 1: sc = 0.5                      # status / fixed-damage moves: last choice
         else: sc = p * (1.5 if d['type'] in my else 1.0) * eff(d['type'], *et) * (d['acc'] / 255)
@@ -59,19 +59,47 @@ MAIN = [(9, 14), (14, 14), (9, 16), (14, 16)]
 MOVEC = [(1, 10), (1, 12), (1, 14), (1, 16)]
 LOG = []
 LEARNC = [(11, 10), (11, 12), (11, 14), (11, 16)]
-def forget_weakest(s, moves):
+import unicodedata as _ud2
+sys.path.insert(0, SC + '/tools')
+from jpchar import decode as _dec
+def _base(t): return _ud2.normalize('NFC', ''.join(c for c in _ud2.normalize('NFD', t) if c not in '\u3099\u309a'))
+MOVENAMES = {}
+_o = 0x4163B
+for _m in range(1, 252):
+    _e = R.index(0x50, _o); MOVENAMES[_base(_dec(R[_o:_e + 1]).rstrip('@'))] = _m; _o = _e + 1
+NEW_MOVE = [None]
+def note_new_move(s):
+    """「<mon>は あたらしく / <move>を おぼえたい……」: remember which move is offered"""
+    t = s.tilemap()
+    for y in (14, 16):
+        line = _base(_dec(bytes(t[y * 20 + 1:y * 20 + 19])))
+        if 'を' in line and 'おほえたい' in line:
+            nm = line.split('を')[0].strip('\u3000 ')
+            if nm in MOVENAMES: NEW_MOVE[0] = MOVENAMES[nm]
+def mscore(m, types=()):
+    if not m: return -1
+    d = move(m); return d['power'] * (d['acc'] / 255) * (1.5 if d['type'] in types else 1)
+def forget_weakest(s, moves, types=()):
     """at 「ほかの わざを わすれさせますか？」 (the kit's learnno makes いいえ the default): はい, then the weakest move
     (status moves first; HM moves are kept)"""
     for i in range(30):
         if cursor(s, [(15, 8), (15, 10)]) is not None: break
         s.wait(6)
+    ws = min(range(4), key=lambda i: (moves[i] in HM_MOVE.values(), mscore(moves[i], types)))
+    nm = NEW_MOVE[0]; NEW_MOVE[0] = None
+    if nm and mscore(nm, types) <= mscore(moves[ws], types):      # not better than what it knows: give it up
+        s.wait(10); s.press('A', 60)                                  # いいえ -> 「あきらめますか？」
+        for i in range(30):
+            if cursor(s, [(15, 8), (15, 10)]) is not None: break
+            s.wait(6)
+        s.wait(10); s.press('U', 20); s.press('A', 60); return False
     s.wait(10); s.press('U', 20); s.press('A', 60)
     if cursor(s, LEARNC) is None: s.press('B', 30); return False
-    ws = min(range(4), key=lambda i: (moves[i] in HM_MOVE.values(), move(moves[i])['power'] if moves[i] else -1))
     for k in range(ws): s.press('D', 15)
     s.press('A', 50); return True
+DIS = set(); LASTW = [0]
 def smart_battle(s, maxp=600):
-    k = 0
+    k = 0; DIS.clear()
     while s.in_battle() and k < maxp:
         k += 1
         t = s.tilemap()
@@ -83,13 +111,17 @@ def smart_battle(s, maxp=600):
             s.g.press('A', 8, 50)
             mc = cursor(s, MOVEC)
             if mc is None: continue
-            want = best_move(s)
+            want = best_move(s, DIS); LASTW[0] = want
             while mc != want:
                 s.g.press('D' if want > mc else 'U', 4, 12); mc2 = cursor(s, MOVEC)
                 if mc2 == mc: break
                 mc = mc2
             s.g.press('A', 8, 40); continue
-        if s.has('わすれさせますか'): forget_weakest(s, list(s.peek(BMON + 2, 4))); continue
+        if s.has('ふうしられている'):                                   # the move is disabled (かなしばり): another one
+            DIS.add(LASTW[0]); s.press('B', 30); continue
+        if s.has('おほえたい'): note_new_move(s)
+        if s.has('わすれさせますか'):
+            bm = s.peek(BMON, 0x20); forget_weakest(s, list(bm[2:6]), (bm[0x1E], bm[0x1F])); continue
         if s.has('あきらめますか？'): s.press('A', 30); continue        # いいえ (the default): back to the question
         if s.has('ほかの') or s.has('おほえるのを'): s.wait(20); continue    # the question is still being printed
         if s.has('もうでています'): s.press('B', 30); s.press('B', 30); continue   # the shift question: keep the one out
@@ -236,6 +268,7 @@ def teach(b, n, mon):
         b.g.press('D' if c is None or c < mon else 'U', 6, 30)
     b.press('A', 50)
     for i in range(30):
+        if b.has('おほえたい'): note_new_move(b)
         if b.has('わすれさせますか'): forget_weakest(b, party(b)[mon]['moves']); continue
         if b.has('あきらめますか？'): b.press('A', 30); continue
         if b.has('ほかの') or b.has('おほえるのを'): b.wait(20); continue

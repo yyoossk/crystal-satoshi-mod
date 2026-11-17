@@ -8,6 +8,8 @@
    Red's ($24 closed, $05 open).
  * The gym tileset's colors as in Red full color (dumps of its gyms and Dojo): the statues' tiles $22 $23 $32 $33
    use palette 0 (gray), not 5 (gold); palette 7 is Red full color's.
+ * Cut in the gym tileset as in Red (Celadon Gym's small trees, tile $50): their quadrants are cut trees, and the
+   Cut table gets Red's swaps for it ($3C/$3F -> $35, $3D -> $36).
 usage: build_phase112.py IN.gbc OUT.gbc OUT.ips
 """
 import sys, os
@@ -45,7 +47,12 @@ OBJS = {
 STATUES = {'PewterGym': [(3, 10), (6, 10)], 'CeruleanGym': [(3, 11), (6, 11)], 'VermilionGym': [(3, 14), (6, 14)],
            'CeladonGym': [(3, 15), (6, 15)], 'FuchsiaGym': [(3, 15), (6, 15)], 'SaffronGym': [(9, 15)],
            'ViridianGym': [(15, 15), (18, 15)]}
-FIRST_FLAG = 533                   # 532: phase 88
+FIRST_FLAG = 533
+CUT_LD_HL = 0xC7E1                 # 03:47E1  ld hl, CutTreeBlockPointers (phase 27 moved the table)
+COLL_CUT_TREE = 0x12
+OVERWORLD_TS = 40
+L_PLACE = (0xC862, 0xC8A4)          # phase 27's lists (03:4862-48A3)
+T_PLACE = (0xFFE2, 0xFFF6)          # phase 27's table (03:7FE2-7FF4) and the byte after it                   # 532: phase 88
 FACE = {'DOWN': 6, 'UP': 7, 'LEFT': 8, 'RIGHT': 9}
 VERMILION_DOOR = {0x40: 0x24, 0x01: 0x05}        # phase 108's door / floor block -> Red's
 
@@ -115,6 +122,12 @@ def main():
         if g == 'SaffronGym': continue
         w_, h_ = RK.red_dims(g); gyms[g] = MapPort(g, dts, w_, h_, g + '.blk')
     meta2, coll2, blks = pairwalls.variants(dts, meta, coll, gyms, [], {g: ovr(dts, gyms[g], g) for g in gyms})
+    coll2 = bytearray(coll2); ncut = 0
+    for b_ in range(len(coll2) // 4):
+        for q, (r_, c_) in enumerate(((1, 0), (1, 2), (3, 0), (3, 2))):
+            if meta2[16 * b_ + 4 * r_ + c_] == 0x50 and coll2[4 * b_ + q] == 0x07: coll2[4 * b_ + q] = COLL_CUT_TREE; ncut += 1
+    coll2 = bytes(coll2)
+    log.append('tileset %d: %d cut-tree quadrants' % (DOJO_TS, ncut))
     # Saffron Gym: Red's FACILITY tileset (ours: 34, with variants of earlier phases: its block count = the highest
     # block any of its maps uses + 1)
     fts = Tileset('Facility', 22, 'facility.bst', SC + '/out/pk_facility.pkl')
@@ -160,6 +173,35 @@ def main():
         for (off, b_), (x, y) in zip(sts, STATUES[g]):
             rom[off] = y; rom[off + 1] = x
         log.append('%s: Red\'s room %dx%d (blocks %X:%04X), %d warps, people, statues as in Red' % (g, mp.w, mp.h, DATA_BANK, bp, len(red_w)))
+    # Cut: the gym tileset uses the Gen I overworld tileset's list (Red's CutTreeBlockSwaps, which begins with the gym's
+    # $3C/$3F -> $35, $3D -> $36).  Bank 3 is full: the table and lists are rearranged in their two places
+    # (03:4862-48A3, phase 27's lists; 03:7FE2-7FF5, its table)
+    tp = rom[CUT_LD_HL + 1] | rom[CUT_LD_HL + 2] << 8; to_ = fo(0x03, tp); assert to_ == T_PLACE[0], hex(to_)
+    tab = []
+    while rom[to_] != 0xFF: tab.append((rom[to_], rom[to_ + 1] | rom[to_ + 2] << 8)); to_ += 3
+    lists = {}
+    for t_, p_ in tab:
+        o_ = fo(0x03, p_); e_ = rom.index(0xFF, o_); lists[t_] = bytes(rom[o_:e_ + 1])
+    ow = OVERWORLD_TS; assert lists[ow][:9] == bytes([0x3C, 0x35, 0, 0x3F, 0x35, 0, 0x3D, 0x36, 0])
+    kanto = lists[3]; assert lists[ow].endswith(kanto)
+    def a3(o): return 0x4000 + o % 0x4000
+    region = L_PLACE[0]; ptr = {}
+    body = bytearray()
+    tab_at = region; body += bytes(3 * (len(tab) + 1) + 1)            # the table first (filled below)
+    for t_ in [t for t, p in tab if t not in (1, 3, ow)]:
+        ptr[t_] = a3(region + len(body)); body += lists[t_]
+    ptr[ow] = a3(region + len(body)); ptr[3] = ptr[ow] + len(lists[ow]) - len(kanto); body += lists[ow]
+    ptr[DOJO_TS] = ptr[ow]
+    assert len(body) <= L_PLACE[1] - L_PLACE[0], len(body)
+    second = bytes(lists[1]); assert len(second) <= T_PLACE[1] - T_PLACE[0]
+    ptr[1] = a3(T_PLACE[0])
+    newtab = b''.join(bytes([t_, ptr[t_] & 0xFF, ptr[t_] >> 8]) for t_ in [t for t, p in tab] + [DOJO_TS]) + b'\xff'
+    body[0:len(newtab)] = newtab
+    rom[L_PLACE[0]:L_PLACE[1]] = bytes(body) + bytes(L_PLACE[1] - L_PLACE[0] - len(body))
+    rom[T_PLACE[0]:T_PLACE[1]] = second + bytes(T_PLACE[1] - T_PLACE[0] - len(second))
+    rom[CUT_LD_HL + 1] = a3(tab_at) & 0xFF; rom[CUT_LD_HL + 2] = a3(tab_at) >> 8
+    log.append('Cut: tileset %d uses the Gen I overworld list (table 03:%04X)' % (DOJO_TS, a3(tab_at)))
+
     # colors as in Red full color
     pm = fo(0x13, e[13] | e[14] << 8)
     for t_ in (0x22, 0x23, 0x32, 0x33):
