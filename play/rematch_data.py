@@ -100,7 +100,7 @@ US_FIGHTCOUNT = {'Jack': 0xd9f2, 'Beverly': 0xd9f3, 'Huey': 0xd9f4, 'Gaven': 0xd
 READY_JP = {}            # who -> (addr, mask): ENGINE_JACK.. from $DC3F bit 0 on, in engine_flags order
 _ORDER = ['Jack', 'Huey', 'Gaven', 'Beth', 'Jose', 'Reena', 'Joey', 'Wade', 'Ralph', 'Liz', 'Anthony', 'Todd', 'Gina',
           'Arnie', 'Alan', 'Dana', 'Chad', 'Tully', 'Brent', 'Tiffany', 'Vance', 'Wilton', 'Parry', 'Erin']
-for _i, _w in enumerate(_ORDER): READY_JP[_w] = (0xDC3F + _i // 8, 1 << (_i % 8))
+for _i, _w in enumerate(_ORDER): READY_JP[_w] = (0xDC12 + _i // 8, 1 << (_i % 8))   # (JP EngineFlags table, 20:4462: $DC12..)
 
 def full():
     t, ids, groups = table()

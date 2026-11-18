@@ -2,7 +2,7 @@
 No memory writes, no warps: only button presses. Levels are trained in grass, HMs taught from the bag,
 healing at Pokémon Centers. Each stage loads the previous stage's state and saves its own (pt_h_<name>.st).
 usage: python3 play/hon.py FIRST_STAGE [LAST_STAGE]"""
-import sys, time, os
+import sys, time, os, json
 sys.path.insert(0, '/tmp/claude-0/-home-claude/e85f874c-51bd-5d2c-9b1a-1d2b8ebf1451/scratchpad/play')
 import pt as P
 from pt import *
@@ -1154,7 +1154,10 @@ def jrematch(b):
     P.SKIPGYM[0] = True; P.REPEL[0] = True
     H.honest_hms(b, cut=True, surf=True, strength=True, whirl=True, waterfall=True)
     bad = []; done = 0
+    DONE = SC + '/run/rematch_done.json'
+    did = json.load(open(DONE)) if os.path.exists(DONE) else []
     for e in RD.full():
+        if e['who'] in did: continue
         r = tour(b, e['map'], visit=False); print('->', e['map'], e['who'], r, b.where(), flush=True)
         if b.where()[0] != b.mapk(e['map']): issue('rematch: not reached', e['map']); continue
         x, y = e['pos']; ra, rm = e['ready']
@@ -1162,7 +1165,7 @@ def jrematch(b):
             cl, tid, want = e['fights'][c]
             got = None
             for t in range(3):
-                b.bank1(); b.poke(e['count'], c); b.poke(ra, b.peek(ra)[0] | rm)
+                b.bank1(); b.g.poke(e["count"], c); b.g.poke(ra, b.peek(ra)[0] | rm)
                 OT_LOG.clear(); H.heal_pc(b) if H.party(b)[0]['hp'] < H.party(b)[0]['maxhp'] // 2 else None
                 if b.where()[0] != b.mapk(e['map']): tour(b, e['map'], visit=False)
                 talk_at(b, x, y); ev(b, 40)
@@ -1175,14 +1178,23 @@ def jrematch(b):
                   still, 'OK' if ok else 'NG'), flush=True)
             if not ok: bad.append((e['who'], c, tid, got, want)); issue('rematch', e['who'], c, tid, got, want)
             done += 1
+            open(SC + '/run/rematch_results.txt', 'a').write('%s %s %d %s %s\n' % (e['map'], e['who'], c, tid, 'OK' if ok else 'NG %s %s' % (got, want)))
+        did.append(e['who']); json.dump(did, open(DONE, 'w')); b.g.save_state(HST % 'jrematch_tr')
     print('rematches', done, 'NG', len(bad), bad, flush=True)
     P.REPEL[0] = False
 
+def warp_to(b, k, x, y):
+    """save-data edit: put the player at (x, y) of map k (the warp script sometimes does not start: a step, again)"""
+    for d in 'UDLRUDLR':
+        b.warp(k, x, y); b.wait(90); ev(b, 20)
+        if b.where()[0] == k: return True
+        b.step(d); b.wait(30)
+    return False
 W_START_DAY, W_CUR_DAY = 0xD4A9, 0xD4BE          # JP = US - $0D (wStartDay / wCurDay; weekday = wCurDay mod 7)
 def set_weekday(b, wd):
     """the game's weekday (0 = Sunday): the start day moved, as if the clock were set on another day"""
     b.bank1(); cur = b.peek(W_CUR_DAY)[0] % 7
-    b.poke(W_START_DAY, (b.peek(W_START_DAY)[0] + (wd - cur) % 7) % 256); b.wait(120)
+    b.g.poke(W_START_DAY, (b.peek(W_START_DAY)[0] + (wd - cur) % 7) % 256); b.wait(120)
     print('  weekday', b.peek(W_CUR_DAY)[0] % 7, 'wanted', wd, flush=True)
 def check_party(name, want_list, tag):
     got = [list(map(tuple, q)) for q in OT_LOG]
@@ -1205,8 +1217,15 @@ def jpost(b):
                      ('FuchsiaGym', 'JanineGroup'), ('SeafoamGym', 'BlaineGroup')]:
         for k in range(2):
             OT_LOG.clear(); b.seen.discard(b.mapk(gym))
-            r = tour(b, gym); print('->', gym, k, r, b.where(), flush=True)
-            if b.where()[0] == b.mapk(gym): talk_map(b); ev(b, 40)
+            if b.where()[0] != b.mapk(gym):                  # (Johto -> Kanto: the player is put inside the gym's door)
+                gk = b.mapk(gym); w = b.db.warps(gk)[0]; G = _bot.grid_of(b.db.r, b.db.maps[gk]['hdr'])
+                sp = next(((w[0], w[1] - d) for d in (2, 1) if 0 <= w[1] - d < len(G) and G[w[1] - d][w[0]] in _bot.WALK), (w[0], w[1] - 1))
+                warp_to(b, gk, *sp)
+            r = tour(b, gym, visit=False); print('->', gym, k, r, b.where(), flush=True)
+            for t in range(3):                               # (talking to everyone may step out of the door: back in)
+                if b.where()[0] != b.mapk(gym): tour(b, gym, visit=False)
+                if b.where()[0] == b.mapk(gym): talk_map(b); ev(b, 40)
+                if OT_LOG: break
             check_party(gym, RD.group(grp), '%s %d' % (gym, k + 1))
             H.heal_pc(b)
     # the rival: Mt. Moon (once), then the Indigo Plateau's Pokémon Center on Monday

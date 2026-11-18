@@ -113,5 +113,7 @@ python3 build_phase113.py ../build/p112.gbc ../build/p113.gbc ../build/p113.ips 
 python3 build_phase114.py ../build/p113.gbc ../build/p114.gbc ../build/p114.ips   # ヤマブキジムの ワープ床
 python3 build_phase115.py ../build/p114.gbc ../build/p115.gbc ../build/p115.ips   # ジョウトで ひでんマシンを 二重に もらわない
 python3 build_phase116.py ../build/p115.gbc ../build/p116.gbc ../build/p116.ips   # 殿堂入り後の チャンピオンロードは 岩なしで 通れる
-cp ../build/p116.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase117.py ../build/p116.gbc ../build/p117.gbc ../build/p117.ips   # ジョウトの 殿堂入り後の おつきみやまの ライバル
+python3 build_phase118.py ../build/p117.gbc ../build/p118.gbc ../build/p118.ips   # グリーン（再戦）の レベルを クリスタルどおりに
+cp ../build/p118.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"

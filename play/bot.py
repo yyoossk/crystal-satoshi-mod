@@ -502,6 +502,7 @@ def _ok_cell(G, x, y):
                                                        or (CAN_SURF[0] and G[y][x] in WATER))
 def _moves(G, x, y):
     """[(dir, dest)] from (x, y): hop tiles are walked on and jumped from (Crystal: the jump starts on the ledge tile)"""
+    if not (0 <= y < len(G) and 0 <= x < len(G[0])): return []       # (a position off the map: at its edge, mid-step)
     out = []; c = G[y][x]
     for (dx, dy), d in (((1, 0), 'R'), ((-1, 0), 'L'), ((0, 1), 'D'), ((0, -1), 'U')):
         if getattr(G, 'red', False):   # Red: jump the ledge in front from the tile before it; otherwise it is a wall
