@@ -11,6 +11,12 @@
    walks up to the player and offers the move (yes: the move tutor's party menu; no: "talk to me any time").
  * Afterwards talking to the guide offers it again, any number of times.  Before the badge: the guide's Red lines.
  * Celadon Gym has no guide in Red: a guide stands near the entrance only once Erika is beaten.
+ * The other people who give a TM whose Red move is not a Crystal TM (2026-11-19 「いや、その人物から教えてもらえるよう
+   にして」) teach Red's move themselves once their TM is given, any number of times: the Celadon City old man
+   (Softboiled), Silph Co. 2F (Selfdestruct), Cinnabar Lab (Metronome), Celadon Mart 3F (Counter), the Copycat
+   (Mimic; only until her Crystal post-game story, EVENT 0xCD), the Celadon Mart roof girl (Ice Beam / Rock Slide /
+   Tri Attack, each once its TM is given).  Their scripts' first 4 bytes become a farsjump to the new script, which
+   goes back to the old one (its first instructions repeated) when there is nothing to teach.
  * Who can learn: Red's TM/HM table for that TM (pokered base stats), through Crystal's move tutor (special MoveTutor
    with the move number in wScriptVar: GetMoveTutorMove passes numbers >= 4 through; the predef CanLearnTMHMMove goes
    to a wrapper that answers from these lists and leaves every other move to Crystal's routine).
@@ -24,7 +30,7 @@ from portlib import Space
 from evedit import MapEvents
 from jpchar import encode
 
-CODE_BANK, DATA_BANK = 0x20, 0x21
+CODE_BANK, DATA_BANK, NPC_BANK = 0x20, 0x21, 0x59
 W_PUTATIVE_MOVE, W_CUR_PARTY_SPECIES = 0xD293, 0xD0C8
 CAN_LEARN = (0x04, 0x55D3); PREDEF_CAN_LEARN = 0x8595
 GET_TUTOR_MOVE = 0x491F7
@@ -39,6 +45,16 @@ GYMS = [  # map, leader, badge engine flag, Red move constant, move name, Red TM
     ('SaffronGym', 'ナツメ', 0x28, 'PSYWAVE', 'サイコウェーブ', 46),
     ('ViridianGym', 'サカキ', 0x2A, 'FISSURE', 'じわれ', 27)]
 CELADON_GUIDE_AT = (7, 15)
+W_SCRIPT_VAR = 0xC2DD
+EV_COPYCAT_POST = 0xCD
+NPCS = [  # (group, map), object (x, y), [(got-TM flag, Red move, name)], extra guard event (set: Crystal's script)
+    ((21, 4), (22, 16), [(0x09C4, 'SOFTBOILED', 'タマゴうみ')], None),
+    ((26, 26), (10, 1), [(0x0607, 'SELFDESTRUCT', 'じばく')], None),
+    ((26, 55), (7, 2), [(0x0849, 'METRONOME', 'ゆびをふる')], None),
+    ((26, 128), (16, 5), [(0x09C8, 'COUNTER', 'カウンター')], None),
+    ((26, 146), (4, 3), [(0x09DA, 'MIMIC', 'ものまね')], EV_COPYCAT_POST),
+    ((26, 131), (5, 5), [(0x09C9, 'ICE_BEAM', 'れいとうビーム'), (0x09CA, 'ROCK_SLIDE', 'いわなだれ'),
+                         (0x09CB, 'TRI_ATTACK', 'トライアタック')], None)]
 DV = {'D': (0, 1), 'U': (0, -1), 'L': (-1, 0), 'R': (1, 0)}
 DIRN = {'D': 0, 'U': 1, 'L': 2, 'R': 3}
 OPP = {'D': 'U', 'U': 'D', 'L': 'R', 'R': 'L'}
@@ -101,7 +117,7 @@ def main():
     db = DB(src)
     MV = move_ids()
     sp = Space(rom)
-    for b in (CODE_BANK, DATA_BANK):
+    for b in (CODE_BANK, DATA_BANK, NPC_BANK):
         f, n = bank_free_tail(rom, b); sp.set_area(b, f + 16, b * 0x4000 + 0x4000)
 
     # ---- the tutor: GetMoveTutorMove passes move numbers >= 4 through (1-3: Crystal's three tutor moves)
@@ -112,12 +128,15 @@ def main():
     # ---- who can learn: the predef CanLearnTMHMMove -> a wrapper with Red's lists
     entries = []
     for gym, leader, badge, mv, mname, tm in GYMS: entries.append((MV[mv], red_learners(mv)))
+    for mp, xy, teach, guard in NPCS:
+        for fl, mv, nm in teach: entries.append((MV[mv], red_learners(mv)))
     a = Asm(sp.here(CODE_BANK))
     w16 = lambda v: bytes([v & 0xFF, v >> 8])
     a.label('wrap'); a.raw(bytes([0xD5, 0xFA]) + w16(W_PUTATIVE_MOVE) + bytes([0x57, 0x21])); a.dw('mtab')
     a.label('l1'); a.raw(bytes([0x2A, 0xA7, 0xCA])); a.dw('orig'); a.raw(bytes([0xBA, 0xCA])); a.dw('found')
     a.raw(bytes([0x23, 0x23, 0xC3])); a.dw('l1')
-    a.label('found'); a.raw(bytes([0x2A, 0x66, 0x6F, 0xFA]) + w16(W_CUR_PARTY_SPECIES) + bytes([0x57]))
+    a.label('found'); a.raw(bytes([0xFA]) + w16(W_SCRIPT_VAR) + bytes([0xBA, 0xC2])); a.dw('orig')   # only our teachers
+    a.raw(bytes([0x2A, 0x66, 0x6F, 0xFA]) + w16(W_CUR_PARTY_SPECIES) + bytes([0x57]))
     a.label('l2'); a.raw(bytes([0x2A, 0xFE, 0xFF, 0xCA])); a.dw('no'); a.raw(bytes([0xBA, 0xC2])); a.dw('l2')
     a.raw(bytes([0x0E, 0x01, 0xD1, 0xC9]))
     a.label('no'); a.raw(bytes([0x0E, 0x00, 0xD1, 0xC9]))
@@ -211,6 +230,50 @@ def main():
         base = a.base; blob = a.done(); assert sp.put(DATA_BANK, blob) == base
         me.install(a)
         log.append('%s: %s %s (Red TM%02d), events %02X:%04X (%d bytes), flag %X' % (gym, leader, mname, tm, DATA_BANK, base, len(blob), called))
+
+    # ---- the other TM givers
+    import mapdb_jp as MJ
+    for (g, mnum), (x, y), teach, guard in NPCS:
+        at = attrs(rom, MJ.header(rom, g, mnum)); B = at['scbank']
+        ev = MJ.events(rom, g, mnum)
+        (oo, ob), = [(o, b) for o, b in ev['objs'] if (b[2] - 4, b[1] - 4) == (x, y)]
+        scr = ob[9] | ob[10] << 8; so = fo(B, scr)
+        assert rom[so:so + 2] == bytes([0x6A, 0x47]), rom[so:so + 8].hex(' ')       # faceplayer ; opentext
+        n = {0x31: 5, 0x21: 4}[rom[so + 2]]                                          # + checkevent / checkitem
+        head = bytes(rom[so + 2:so + n])
+        a = Asm(sp.here(NPC_BANK)); a.bank = NPC_BANK
+        if len(teach) == 1:
+            fl, mv, nm = teach[0]
+            a.label('new'); a.checkevent(fl); a.iffalse('orig')
+            if guard is not None: a.checkevent(guard); a.iftrue('orig')
+            a.faceplayer(); a.opentext(); a.writetext('ask'); a.yesorno(); a.iffalse('t_no')
+            a.db(0x15, MV[mv]); a.special(SPECIAL_MOVE_TUTOR); a.ifequal(0, 't_ok')
+            a.label('t_no'); a.writetext('no'); a.waitbutton(); a.closetext(); a.end()
+            a.label('t_ok'); a.writetext('ok'); a.waitbutton(); a.closetext(); a.end()
+            texts = {'ask': T(nm + 'を<LINE>おしえて　あげようか？'),
+                     'ok': T('これで　' + nm + 'も<LINE>ばっちりだね！<PARA>また　いつでも<LINE>おしえて　あげるよ！'),
+                     'no': T('そうか<……><PARA>おぼえさせたく　なったら<LINE>いつでも　はなしかけてね！')}
+        else:
+            a.label('new')
+            for k, (fl, mv, nm) in enumerate(teach): a.checkevent(fl); a.iftrue('any')
+            a.sjump('orig')
+            a.label('any'); a.faceplayer(); a.opentext(); a.writetext('ask'); a.yesorno(); a.iffalse('orig2')
+            texts = {'ask': T('わざマシンの　わざを<LINE>おしえて　あげようか？'),
+                     'bye': T('また　いつでも<LINE>おしえて　あげるね！')}
+            for k, (fl, mv, nm) in enumerate(teach):
+                a.checkevent(fl); a.iffalse('n%d' % k)
+                a.writetext('q%d' % k); a.yesorno(); a.iffalse('n%d' % k)
+                a.db(0x15, MV[mv]); a.special(SPECIAL_MOVE_TUTOR)
+                a.label('n%d' % k)
+                texts['q%d' % k] = T(nm + 'を<LINE>おぼえさせる？')
+            a.writetext('bye'); a.waitbutton(); a.closetext(); a.end()
+        a.label('orig'); a.faceplayer(); a.opentext()
+        a.label('orig2'); a.raw(head); a.farsjump(B, scr + n)
+        for kk, v in texts.items(): a.label(kk); a.raw(v)
+        base = a.base; blob = a.done(); assert sp.put(NPC_BANK, blob) == base
+        rom[so:so + 4] = bytes([0x04, NPC_BANK]) + w16(a.labels['new'])               # farsjump
+        log.append('%d:%d (%d,%d) %s: %02X:%04X -> %02X:%04X (%d bytes)'
+                   % (g, mnum, x, y, '/'.join(t[1] for t in teach), B, scr, NPC_BANK, base, len(blob)))
 
     fix_checksum(rom)
     open(outrom, 'wb').write(rom)
