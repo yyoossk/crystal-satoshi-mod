@@ -265,6 +265,31 @@ def carpet_fix(b, k, G):
     return G
 
 
+
+# doors opened by scripts stay open: their blocks as the game has them once the condition holds (the bot's grids are
+# built from the ROM's blocks, so a door opened on an earlier visit would otherwise still be a wall when planning)
+def _keyitem(b, i): b.bank1(); return i in b.peek(0xD8B0, 0x1B)
+KNOWN_DOORS = [('RadioTower3F', lambda b: _keyitem(b, 0x7F) and __import__('honest').has_hm(b, 6) and _keyitem(b, 0x46), [(14, 2, 0x2A), (14, 4, 0x01)]),
+               ('TeamRocketBaseB3F', lambda b: __import__('honest').has_hm(b, 6), [(10, 8, 0x07)]),
+               ('TeamRocketBaseB2F', lambda b: __import__('honest').has_hm(b, 6), [(14, 12, 0x07)]),
+               ('GoldenrodUnderground', lambda b: _keyitem(b, 0x7F), [(18, 6, 0x2E)])]
+def patch_blocks(b, name, blocks):
+    import bot as _b
+    k = b.mapk(name); m = b.db.maps.get(k)
+    if not m: return
+    h = m['hdr']; G = _b._GC.get(h) or _b.grid_of(b.db.r, h)
+    TS = _b._PM.Tilesets(b.db.r, _b._Space(b.db.r)); co = TS.coll_off(b.db.r[h + 1])
+    for (x, y, blk) in blocks:
+        for q in range(4):
+            yy, xx = y + q // 2, x + q % 2
+            if 0 <= yy < len(G) and 0 <= xx < len(G[0]): G[yy][xx] = b.db.r[co + 4 * blk + q]
+    _b._GC[h] = G
+def known_doors(b):
+    for name, cond, blocks in KNOWN_DOORS:
+        try:
+            if cond(b): patch_blocks(b, name, blocks)
+        except Exception as e: print('  known door', name, e, flush=True)
+
 def live_grid(b):
     """the current map's collision from the blocks in RAM (doors opened / closed by scripts), into the bot's grid cache"""
     import bot as _b
@@ -535,6 +560,8 @@ def region_go(b, target, cells, maps, steps=20, people=True, town='SaffronCity')
         import bot as _bb
         for m in maps:                                   # other floors: their rooms as built (doors open once the key is had)
             if m != b.where()[0]: _bb._GC.pop(b.db.maps[m]['hdr'], None)
+        known_doors(b)
+        if REPEL[0]: __import__('honest').use_repel(b)
         live_grid(b)
         p = region_plan(b, target, cells, maps, people)
         if p is None and DOORS[0]:            # (opening doors walks about: only when there is no way yet)

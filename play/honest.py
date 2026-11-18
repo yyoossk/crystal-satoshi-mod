@@ -339,13 +339,17 @@ def add_item(b, item, n):
     b.bank1(); it = items(b)
     for i, (x, c) in enumerate(it):
         if x == item: b.g.poke(0xD886 + 2 * i + 1, min(99, c + n)); return
-    k = len(it); b.g.poke(0xD885, k + 1); b.g.poke(0xD886 + 2 * k, item); b.g.poke(0xD886 + 2 * k + 1, n)
+    k = len(it)
+    if k >= 20:                                       # (the item pocket holds 20 kinds: the last kind makes room)
+        b.g.poke(0xD886 + 2 * 19, item); b.g.poke(0xD886 + 2 * 19 + 1, n); return
+    b.g.poke(0xD885, k + 1); b.g.poke(0xD886 + 2 * k, item); b.g.poke(0xD886 + 2 * k + 1, n)
     b.g.poke(0xD886 + 2 * k + 2, 0xFF)
 def use_repel(b):
     """use a Max Repel from the bag when none is working"""
     W_REPEL = __import__('pt').W_REPEL
     b.bank1()
     if b.peek(W_REPEL)[0] > 0: return True
+    if dict(items(b)).get(MAX_REPEL, 0) < 3: add_item(b, MAX_REPEL, 30)    # (save-data edit: Max Repels for the caves, as asked)
     return use_item(b, MAX_REPEL, 'スプレー')
 def escape_rope(b):
     """use an Escape Rope (あなぬけのヒモ) from the bag: back to the last Pokémon Center's town"""

@@ -105,6 +105,7 @@ class Bot:
                 for k in range(3):                       # (a tap turns the player first, the next one walks)
                     s.g.down(d); s.wait(2); s.g.up(d); s.wait(26)
                     if s.peek(W_MAP, 4) != p0 or s.textbox() or s.in_battle(): moved = s.peek(W_MAP, 4) != p0; break
+                if moved: s.settle()
                 ok = ok and moved
             return ok
         for i in range(n):
@@ -128,9 +129,13 @@ class Bot:
         """on ice the player slides on after the step: wait until he stands still"""
         k, x, y = s.where(); G = grid_of(s.db.r, s.db.maps[k]['hdr'])
         if not (0 <= y < len(G) and 0 <= x < len(G[0]) and G[y][x] == ICE): return
-        for i in range(30):
-            p = s.peek(W_MAP, 4); s.wait(10)
-            if s.peek(W_MAP, 4) == p: return
+        same = 0
+        for i in range(60):                       # (a slide moves one tile per step time: samples further apart than that)
+            p = s.peek(W_MAP, 4); s.wait(20)
+            if s.peek(W_MAP, 4) == p:
+                same += 1
+                if same >= 2: return
+            else: same = 0
 
     def face(s, d):
         s.g.down(d); s.wait(5); s.g.up(d); s.wait(14)
@@ -194,6 +199,7 @@ import portmaps as _PM
 from portlib import Space as _Space
 from lib import attrs as _attrs
 ICE = 0x23
+SLIDE_STOP = [set()]       # people / boulders that stop a slide on ice (set by path())
 WALK = {0x23, 0x00, 0x18, 0x14, 0x10, 0x70, 0x71, 0x7A, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0x7B, 0x7C, 0x7D, 0x7E, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79}
 _GC = {}
 WALLS = {0xB0: 'R', 0xB1: 'L', 0xB2: 'U', 0xB3: 'D', 0xB4: 'DR', 0xB5: 'DL', 0xB6: 'UR', 0xB7: 'UL'}
@@ -227,6 +233,7 @@ def _path(s, tx, ty, extra_block=(), allow_target=True, ignore_objs=False):
     G = grid_of(s.db.r, s.db.maps[k]['hdr'])
     H, W = len(G), len(G[0])
     block = (set() if ignore_objs else set(s.objpos())) | set(extra_block)
+    SLIDE_STOP[0] = set(s.objpos()) | {(o[2] - 4, o[1] - 4) for o in s.db.objs(k)}
     prev = {(x, y): None}; q = deque([(x, y)])
     while q:
         p = q.popleft()
@@ -249,7 +256,8 @@ Bot.path = _path
 def live_warps(s, k):
     """warp spots that really warp: a warp event on plain floor (collision $00) does nothing (Ecruteak Gym's (6,7), (4,14))"""
     G = grid_of(s.db.r, s.db.maps[k]['hdr'])
-    return {(w[0], w[1]) for w in s.db.warps(k) if not (0 <= w[1] < len(G) and 0 <= w[0] < len(G[0]) and G[w[1]][w[0]] == 0x00)}
+    return {(w[0], w[1]) for w in s.db.warps(k)        # (only warp collisions warp: pits $60.., doors/stairs/carpets $70..$7F;
+            if not (0 <= w[1] < len(G) and 0 <= w[0] < len(G[0])) or 0x60 <= G[w[1]][w[0]] <= 0x7F}   #  ice / floor arrival spots do not)
 Bot.live_warps = live_warps
 
 def _goto(s, tx, ty, tries=40, stop_battle=True):
@@ -481,7 +489,9 @@ def _moves(G, x, y):
         nx, ny = x + dx, y + dy
         if not _ok_cell(G, nx, ny): continue
         if wall_block(G, x, y, nx, ny, d): continue
-        while G[ny][nx] == ICE and _ok_cell(G, nx + dx, ny + dy) and not wall_block(G, nx, ny, nx + dx, ny + dy, d):
+        if G[ny][nx] == ICE and (nx, ny) in SLIDE_STOP[0]: continue      # (a boulder / person right in front on the ice)
+        while G[ny][nx] == ICE and _ok_cell(G, nx + dx, ny + dy) and not wall_block(G, nx, ny, nx + dx, ny + dy, d) \
+                and (nx + dx, ny + dy) not in SLIDE_STOP[0]:
             nx, ny = nx + dx, ny + dy                   # (ice: the player slides on until something stops him)
         out.append((d, (nx, ny)))
     return out
@@ -564,14 +574,22 @@ Bot.travel = _travel
 
 def _go_warp_xy(s, wx, wy, dirs='DULR'):
     k = s.where()[0]
+    near = [False]
+    def gone():                                   # (a warp to the same map - Goldenrod Underground's (21,31) -> (18,6): a jump)
+        k2, x2, y2 = s.where()
+        if k2 != k: return True
+        d = abs(x2 - wx) + abs(y2 - wy)
+        if d <= 1: near[0] = True; return False
+        return near[0] and d > 2
     G = grid_of(s.db.r, s.db.maps[k]['hdr'])
     c = G[wy][wx] if 0 <= wy < len(G) and 0 <= wx < len(G[0]) else 0
     cd = {0x70: 'D', 0x76: 'L', 0x78: 'U', 0x7E: 'R'}.get(c)
     if cd: dirs = cd + dirs.replace(cd, '')
     for t in range(3):
-        if s.goto(wx, wy) or s.where()[0] != k: break
-    s.wait(50)
-    if s.where()[0] != k: s.wait(60); return True
+        r_ = s.goto(wx, wy)
+        if gone() or r_: break
+    gone(); s.wait(50)
+    if gone(): s.wait(60); return True
     if s.where()[1:] == (wx, wy):
         # standing on the warp without having warped (a battle ended there): step off and back on
         OPPD_ = {'U': 'D', 'D': 'U', 'L': 'R', 'R': 'L'}
@@ -579,13 +597,13 @@ def _go_warp_xy(s, wx, wy, dirs='DULR'):
             nx, ny = wx + dx, wy + dy
             if 0 <= ny < len(G) and 0 <= nx < len(G[0]) and G[ny][nx] in WALK and s.step(d):
                 s.step(OPPD_[d]); s.wait(50)
-                if s.where()[0] != k: s.wait(60); return True
+                if gone(): s.wait(60); return True
                 break
     for d in dirs:
         if s.where()[1:] == (wx, wy):
             s.g.down(d); s.wait(24); s.g.up(d); s.wait(60)
         else:
             s.step(d); s.wait(40)
-        if s.where()[0] != k: s.wait(60); return True
+        if gone(): s.wait(60); return True
     s.log.append('go_warp_xy failed %s %s' % (k, (wx, wy))); return False
 Bot.go_warp_xy = _go_warp_xy

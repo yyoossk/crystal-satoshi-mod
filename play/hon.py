@@ -157,6 +157,8 @@ def run(name, prev):
     if name.startswith('j'):                             # Johto: the Kanto HMs are in the bag from the start
         H.honest_hms(b, cut=H.has_hm(b, 1), surf=H.has_hm(b, 3), strength=H.has_hm(b, 4))
         print('  hms: cut', _bot.CAN_CUT[0], 'surf', _bot.CAN_SURF[0], flush=True)
+        P.known_doors(b)
+        if H.MAX_REPEL not in [i for i, _ in H.items(b)]: H.add_item(b, H.MAX_REPEL, 30)   # (caves: Max Repels, as asked)
     f(b)
     b.g.save_state(HST % name)
     print('#### end', name, b.where(), mus(b), 'badges', badges(b), [(q['species'], q['level']) for q in H.party(b)],
@@ -933,6 +935,98 @@ def jmahog(b):
     gym_try(b, 'MahoganyGym'); print('johto badges after Pryce', jbadges(b), flush=True)   # (the ice floor: the planner slides)
     if jbadges(b) < 7: issue('no Glacier Badge')
 
+UG_SWITCHES = [(2, 1), (10, 1), (16, 1)]          # switches 3, 2, 1: pressed in this order the shutters open to the warehouse
+def underground(b):
+    """Goldenrod Underground (Crystal): the Basement Key opens the door (bg (18,6)); the switch room - the rival at
+    (19,4); switches 3, 2, 1 (worked out from the doors' table: position 6 opens the way to (22,10)); the warehouse:
+    the real Director gives the Card Key"""
+    ug = {b.mapk(m) for m in ('GoldenrodUnderground', 'GoldenrodUndergroundSwitchRoomEntrances', 'GoldenrodUndergroundWarehouse')}
+    sw = b.mapk('GoldenrodUndergroundSwitchRoomEntrances')
+    tour(b, 'GoldenrodUnderground', visit=False); print('  underground', b.where(), flush=True)
+    read_bg(b, 18, 6, 'U'); print('  basement door', b.where(), flush=True)
+    for t in range(3):
+        P.region_go(b, sw, [(23, 4), (22, 4)], ug, town='GoldenrodCity', people=False)
+        if b.where()[0] == sw and b.where()[2] < 8: break
+    print('  switch room', b.where(), flush=True)
+    for x, y in UG_SWITCHES:
+        read_bg(b, x, y, 'U')
+        for i in range(6):
+            if b.has('はい') and b.has('いいえ'): b.press('A', 40); continue
+            if b.textbox(): b.press('A', 30)
+        ev(b, 40); P.live_grid(b); print('  switch', (x, y), b.where(), flush=True)
+    for t in range(3):
+        if b.where()[0] == b.mapk('GoldenrodUndergroundWarehouse'): break
+        b.goto(22, 10, tries=30); ev(b, 40)
+    print('  warehouse', b.where(), flush=True)
+    for k_ in range(3):                                   # the real Director (the warehouse's other way out is the Dept. Store)
+        talk_at(b, 12, 8); ev(b, 80)
+        b.bank1()
+        if 0x7F in b.peek(0xD8B0, 0x1B): break
+    b.bank1(); print('  card key', 0x7F in b.peek(0xD8B0, 0x1B), flush=True)
+    # back out: the switch room's lower strip is shut in at position 6; the emergency switch (bg (20,11)) opens the way up
+    for t in range(3):
+        if b.where()[0] == sw: break
+        P.region_go(b, sw, [(20, 12), (21, 12)], ug, town='GoldenrodCity', people=False)
+    read_bg(b, 20, 11, 'U')
+    for i in range(6):
+        if b.has('はい') and b.has('いいえ'): b.press('A', 40); continue
+        if b.textbox(): b.press('A', 30)
+    ev(b, 40); P.live_grid(b); print('  emergency switch', b.where(), flush=True)
+@stage
+def jradio(b):
+    """Goldenrod's Radio Tower taken by Team Rocket (after Pryce, Crystal): up the west side to 5F - the fake Director
+    (coord (0,3)) gives the Basement Key; the underground (switches) - the Card Key; 3F's card key slot (bg (14,2)),
+    the east side up to 5F - the Rocket boss (coord (16,5)); the Director: the Clear Bell"""
+    P.SKIPGYM[0] = True
+    rt = {b.mapk('RadioTower%dF' % i) for i in range(1, 6)}
+    r = tour(b, 'GoldenrodCity'); print('-> GoldenrodCity', r, b.where(), flush=True)
+    tour(b, 'RadioTower1F'); talk_map(b); ev(b, 60)
+    for f in (2, 3, 4):
+        b.seen.discard(b.mapk('RadioTower%dF' % f)); tour(b, 'RadioTower%dF' % f); talk_map(b); ev(b, 60)
+    P.region_go(b, b.mapk('RadioTower5F'), [(0, 3), (0, 2)], rt, town='GoldenrodCity', people=False)
+    P.sgoto(b, 0, 3); ev(b, 120); talk_map(b); ev(b, 60)
+    print('-> fake director', b.where(), flush=True)
+    underground(b)
+    tour(b, 'RadioTower3F', visit=False); read_bg(b, 14, 2, 'U'); print('  card key slot', b.where(), flush=True)
+    for f in (3, 4):
+        talk_map(b); ev(b, 60)
+        P.region_go(b, b.mapk('RadioTower%dF' % (f + 1)), [(12, 1), (13, 1), (16, 6)], rt, town='GoldenrodCity', people=False)
+    P.sgoto(b, 16, 5); ev(b, 120); talk_map(b); ev(b, 80); talk_map(b); ev(b, 60)
+    print('radio tower done?', b.where(), flush=True)
+
+ICE_B1F = [((11, 7), (11, 2)), ((7, 8), (4, 7)), ((8, 9), (5, 12)), ((17, 7), (12, 13))]   # Crystal's stone table: boulder i -> hole i
+def ice_boulders(b):
+    """Ice Path B1F (Crystal's IcePathB1F.asm stonetable): each boulder drops through its own hole; on B2F they stop
+    the slides"""
+    left = list(ICE_B1F)
+    for rnd in range(3):
+        for bxy, hole in list(left):
+            others = [q for q, _ in left if q != bxy]
+            r = P.push_boulders(b, [bxy], hole, others=others)
+            print('  ice boulder', bxy, '->', hole, r, flush=True)
+            if r is True:
+                left.remove((bxy, hole)); ev(b, 60)
+        if not left: break
+    return not left
+@stage
+def jice(b):
+    """Route 44, the Ice Path (1F: HM07 Waterfall; B1F: four boulders into their holes; B2F/B3F: slides), Blackthorn"""
+    P.SKIPGYM[0] = True; P.REPEL[0] = True
+    for t in ['Route44', 'IcePath1F']:
+        r = tour(b, t); print('->', t, r, b.where(), flush=True)
+    talk_map(b); ev(b, 40)
+    print('waterfall?', H.has_hm(b, 7), flush=True)
+    r = tour(b, 'IcePathB1F', visit=False); print('-> IcePathB1F', r, b.where(), flush=True)
+    ice_boulders(b)
+    ice = {b.mapk(m) for m in ('IcePath1F', 'IcePathB1F', 'IcePathB2FMahoganySide', 'IcePathB3F', 'IcePathB2FBlackthornSide')}
+    _bot.PRECISE[0] = True                                # (ice: a held key walks one tile too far - off the snow, onto the ice)
+    try: P.region_go(b, b.mapk('IcePath1F'), [(36, 26), (35, 27), (36, 25)], ice, town='Route44')   # (the Blackthorn side's exit)
+    finally: _bot.PRECISE[0] = False
+    print('-> Ice Path, Blackthorn side', b.where(), flush=True)
+    r = tour(b, 'BlackthornCity', visit=False); print('-> BlackthornCity', r, b.where(), flush=True)
+    P.REPEL[0] = False
+    if not H.has_hm(b, 7): issue('no HM07 Waterfall')
+
 def pad_talks(b, people):
     """Saffron Gym: walk by the pads (wgoto) next to each person and talk"""
     for (x, y) in people:
@@ -956,7 +1050,7 @@ def gym_try(b, gym, tries=3):
     import bot as _bb
     for t in range(tries):
         tour(b, gym)
-        _bb.PRECISE[0] = gym in ('EcruteakGym',)          # (its invisible floor: one tile at a time)
+        _bb.PRECISE[0] = gym in ('EcruteakGym', 'MahoganyGym')   # (invisible floor / ice: one tile at a time)
         try: talk_map(b); ev(b, 40)
         finally: _bb.PRECISE[0] = False
         if badges(b) + jbadges(b) > n0: return True
