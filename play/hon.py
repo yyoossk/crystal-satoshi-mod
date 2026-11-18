@@ -28,7 +28,15 @@ def travel(s, *a, **k):
     return _tr(s, *a, **k)
 _bot.Bot.travel = travel
 _ob = _bot.Bot.battle
+OT_PARTY, OT_LOG = 0xD2B1, []          # wOTPartyCount (JP = US $D280 + $31); mons from $D2B9, $30 bytes each, level +$1F
+def ot_party(s):
+    n = s.peek(OT_PARTY)[0]
+    if not 1 <= n <= 6: return []
+    return [(s.peek(0xD2B9 + 0x30 * i)[0], s.peek(0xD2B9 + 0x30 * i + 0x1F)[0]) for i in range(n)]
 def _bt(s, *a, **k):
+    if s.peek(_bot.W_BATTLE)[0] == 2:
+        q = ot_party(s)
+        if not OT_LOG or OT_LOG[-1] != q: OT_LOG.append(q)
     t = time.time(); e = s.peek(H.EMON, 14); r = _ob(s, *a, **k); p = H.party(s)
     print('  battle %.0fs lv%d hp%d/%d %s vs %d lv%d' % (time.time() - t, p[0]['level'], p[0]['hp'], p[0]['maxhp'], s.where(), e[0], e[13]), flush=True); return r
 _bot.Bot.battle = _bt
@@ -544,7 +552,11 @@ def victory(b):
             bs, ob = boulders_here(b)
             r = P.push_boulders(b, bs, goal, ob, minhp=0.15 if goal == (23, 15) else 0.55)   # (the hole: one push)
             print('VR', k, goal, r, b.where(), flush=True)
-            if r is True or (goal == (23, 15) and (b.flag(2241) or b.where()[0] == VR2)): return True   # (fell down with it)
+            if goal == (23, 15):                       # the hole: done only when the boulder really fell (its flag)
+                b.wait(30)
+                if b.flag(2241): return True
+                if r is True: r = False
+            elif r is True: return True
             if r is None: return None
             if b.where()[0] in (VR1, VR2, VR3): H.escape_rope(b)     # out of the cave first (walking back is long)
             H.heal_pc(b)
@@ -568,7 +580,7 @@ def victory(b):
         floor(VR3, (3, 5), to3f); save()
     if not b.flag(SW2B):
         if not b.flag(HOLE): floor(VR3, (23, 15), to3f)
-        if b.where()[0] == VR3 and P.safe_goto(b, 23, 14, tries=12): b.step('D'); b.wait(60); ev(b, 10)   # follow it down
+        if b.flag(HOLE) and b.where()[0] == VR3 and P.safe_goto(b, 23, 14, tries=12): b.step('D'); b.wait(60); ev(b, 10)   # follow it down
         print('VR after the hole', b.where(), flush=True); save()
         for t in range(3):
             if b.flag(SW2B): break
@@ -581,6 +593,17 @@ def victory(b):
             elif r is None: break
         save()
     _busy[0] = True                                   # (no walking back to heal: the Indigo Plateau has its own center)
+    for t in range(6):                                # the way out (Red): 2F (25,14) up -> 3F (26,8) down -> 2F's exit (29,8)
+        k = b.where()[0]; P.live_grid(b)
+        if k == VR3 and b.where()[1:] != (26, 8):
+            if b.where()[1] < 24 and b.where()[1:] != (27, 15): b.go_warp_xy(23, 7)      # (the west part: back down first)
+            else: b.go_warp_xy(26, 8)
+        elif k == VR2:
+            x, y = b.where()[1:]
+            if x >= 25 and y <= 9: b.go_warp_xy(29, 8)
+            else: b.go_warp_xy(25, 14)
+        else: break
+        b.wait(30); ev(b, 10); print('VR exit', b.where(), flush=True)
     try: r = tour(b, (16, 2), visit=False)
     finally: _busy[0] = False
     print('-> Indigo Plateau', r, b.where(), flush=True)
@@ -1089,6 +1112,125 @@ def jblack(b):
     for k_ in range(4): ev(b, 60); talk_map(b)
     print('johto badges after the Dragon Shrine', jbadges(b), flush=True)
     if jbadges(b) < 8: issue('no Rising Badge')
+
+@stage
+def jroad(b):
+    """New Bark -> Route 27 (Surf), the Tohjo Falls (Waterfall), Route 26, the Victory Road gate, Victory Road, the Indigo
+    Plateau"""
+    P.SKIPGYM[0] = True; P.REPEL[0] = True
+    H.honest_hms(b, cut=True, surf=True, strength=True, whirl=True, waterfall=True)
+    for t in ['NewBarkTown', 'Route27', 'TohjoFalls']:
+        r = tour(b, t, visit=False); print('->', t, r, b.where(), flush=True)
+    # (the walkthrough: up the waterfall inside, then out by the east mouth - Route 27's east part leads to Route 26)
+    falls = {b.mapk('TohjoFalls'), b.mapk('Route27')}
+    P.region_go(b, b.mapk('Route27'), [(37, 6), (38, 6), (52, 6)], falls, town='NewBarkTown', people=False)
+    print('-> Route 27 east', b.where(), flush=True)
+    for t in ['Route26', 'VictoryRoadGate']:
+        r = tour(b, t, visit=False); print('->', t, r, b.where(), flush=True)
+    # this MOD: the gate's north leads to Route 23 and Red's Victory Road (its boulders again) -- the Kanto stage's way
+    global train
+    _t = train; train = lambda *a, **k: None
+    try: victory(b)
+    finally: train = _t
+    P.REPEL[0] = False
+@stage
+def jleague(b):
+    """the Johto League (the second visit to the Indigo Plateau): the user's Lv100 team, the Elite Four and Lance"""
+    league(b)
+
+@stage
+def jrematch(b):
+    """the user (2026-11-18): every rematch after the Hall of Fame.  Phone trainers (Crystal's 24 rematch trainers):
+    their call is replaced by its result (the fight count and the 'ready for a rematch' flag, written into the save
+    data); each fight count's party is compared with Crystal's (pokecrystal data/trainers/parties.asm)"""
+    import rematch_data as RD
+    P.SKIPGYM[0] = True; P.REPEL[0] = True
+    H.honest_hms(b, cut=True, surf=True, strength=True, whirl=True, waterfall=True)
+    bad = []; done = 0
+    for e in RD.full():
+        r = tour(b, e['map'], visit=False); print('->', e['map'], e['who'], r, b.where(), flush=True)
+        if b.where()[0] != b.mapk(e['map']): issue('rematch: not reached', e['map']); continue
+        x, y = e['pos']; ra, rm = e['ready']
+        for c in sorted(e['fights']):
+            cl, tid, want = e['fights'][c]
+            got = None
+            for t in range(3):
+                b.bank1(); b.poke(e['count'], c); b.poke(ra, b.peek(ra)[0] | rm)
+                OT_LOG.clear(); H.heal_pc(b) if H.party(b)[0]['hp'] < H.party(b)[0]['maxhp'] // 2 else None
+                if b.where()[0] != b.mapk(e['map']): tour(b, e['map'], visit=False)
+                talk_at(b, x, y); ev(b, 40)
+                if OT_LOG:
+                    got = OT_LOG[-1]
+                    if [tuple(q) for q in got] == [tuple(q) for q in want] and not (b.peek(ra)[0] & rm): break
+            after = b.peek(e['count'])[0]; still = bool(b.peek(ra)[0] & rm)
+            ok = got is not None and [tuple(q) for q in got] == [tuple(q) for q in want] and not still
+            print('REMATCH %s %s count %d -> %s %s %s after %d ready %s %s' % (e['map'], e['who'], c, tid, got, want, after,
+                  still, 'OK' if ok else 'NG'), flush=True)
+            if not ok: bad.append((e['who'], c, tid, got, want)); issue('rematch', e['who'], c, tid, got, want)
+            done += 1
+    print('rematches', done, 'NG', len(bad), bad, flush=True)
+    P.REPEL[0] = False
+
+W_START_DAY, W_CUR_DAY = 0xD4A9, 0xD4BE          # JP = US - $0D (wStartDay / wCurDay; weekday = wCurDay mod 7)
+def set_weekday(b, wd):
+    """the game's weekday (0 = Sunday): the start day moved, as if the clock were set on another day"""
+    b.bank1(); cur = b.peek(W_CUR_DAY)[0] % 7
+    b.poke(W_START_DAY, (b.peek(W_START_DAY)[0] + (wd - cur) % 7) % 256); b.wait(120)
+    print('  weekday', b.peek(W_CUR_DAY)[0] % 7, 'wanted', wd, flush=True)
+def check_party(name, want_list, tag):
+    got = [list(map(tuple, q)) for q in OT_LOG]
+    w = [list(map(tuple, q)) for q in want_list]
+    ok = any(g in w for g in got)
+    print('POST %s %s got %s want %s' % (tag, 'OK' if ok else 'NG', got, w), flush=True)
+    if not ok: issue('post-game', tag, got, w)
+    return ok
+@stage
+def jpost(b):
+    """the user (2026-11-18): every battle after the Johto Hall of Fame as in Crystal -- the Kanto gym leaders'
+    rematches (Crystal's teams, phase 50/87; twice: the first line and the 'again?' one), the rival in Mt. Moon, at the
+    Indigo Plateau (Monday / Wednesday) and in the Dragon's Den (Tuesday / Thursday, no battle), the Elite Four again,
+    Hibiki on Mt. Silver (Red's place)"""
+    import rematch_data as RD
+    P.SKIPGYM[0] = True; P.REPEL[0] = True
+    H.honest_hms(b, cut=True, surf=True, strength=True, whirl=True, waterfall=True)
+    for gym, grp in [('ViridianGym', 'BlueGroup'), ('PewterGym', 'BrockGroup'), ('CeruleanGym', 'MistyGroup'),
+                     ('VermilionGym', 'LtSurgeGroup'), ('CeladonGym', 'ErikaGroup'), ('SaffronGym', 'SabrinaGroup'),
+                     ('FuchsiaGym', 'JanineGroup'), ('SeafoamGym', 'BlaineGroup')]:
+        for k in range(2):
+            OT_LOG.clear(); b.seen.discard(b.mapk(gym))
+            r = tour(b, gym); print('->', gym, k, r, b.where(), flush=True)
+            if b.where()[0] == b.mapk(gym): talk_map(b); ev(b, 40)
+            check_party(gym, RD.group(grp), '%s %d' % (gym, k + 1))
+            H.heal_pc(b)
+    # the rival: Mt. Moon (once), then the Indigo Plateau's Pokémon Center on Monday
+    OT_LOG.clear(); r = tour(b, 'MountMoon', visit=False); ev(b, 60); print('-> MountMoon', r, b.where(), flush=True)
+    for t in range(20):
+        if OT_LOG: break
+        if b.where()[0] == b.mapk('MountMoon'): P.sgoto(b, b.where()[1], b.where()[2] + 1); ev(b, 40)
+    check_party('MountMoon', RD.group('Rival2Group')[:3], 'rival Mt. Moon'); H.heal_pc(b)
+    for wd, name in ((1, 'Monday'), (3, 'Wednesday')):
+        set_weekday(b, wd); OT_LOG.clear()
+        tour(b, (16, 1), visit=False); b.seen.discard((16, 2))
+        r = tour(b, (16, 2), visit=False); ev(b, 80); print('-> Indigo', name, r, b.where(), flush=True)
+        check_party('Indigo', RD.group('Rival2Group')[3:], 'rival Indigo Plateau %s' % name); H.heal_pc(b, (16, 2))
+    set_weekday(b, 2); OT_LOG.clear()                          # Tuesday: Indigo Plateau, no rival
+    tour(b, (16, 1), visit=False); tour(b, (16, 2), visit=False); ev(b, 80)
+    print('POST rival Indigo Tuesday %s' % ('OK' if not OT_LOG else 'NG battle %s' % OT_LOG), flush=True)
+    # the Elite Four and Lance again
+    OT_LOG.clear(); league(b)
+    print('POST E4 again', len(OT_LOG), 'parties', OT_LOG, flush=True)
+    # the Dragon's Den: the rival on Tuesday / Thursday (talk only)
+    set_weekday(b, 4)
+    r = tour(b, 'DragonsDenB1F', visit=False); print('-> DragonsDenB1F', r, b.where(), flush=True)
+    OT_LOG.clear(); talk_map(b); ev(b, 40)
+    print('POST Dragon\'s Den Thursday objs', b.objpos(), 'battles', OT_LOG, flush=True)
+    # Mt. Silver: Hibiki
+    OT_LOG.clear(); r = tour(b, 'SilverCaveRoom3', visit=False); print('-> SilverCaveRoom3', r, b.where(), flush=True)
+    if b.where()[0] == b.mapk('SilverCaveRoom3'): talk_map(b); ev(b, 80)
+    print('POST Hibiki', OT_LOG, b.where(), flush=True)
+    for k in range(10): ev(b, 40); b.wait(60)
+    print('after Hibiki', b.where(), flush=True)
+    P.REPEL[0] = False
 
 def pad_talks(b, people):
     """Saffron Gym: walk by the pads (wgoto) next to each person and talk"""

@@ -309,6 +309,8 @@ def honest_hms(b, cut=True, flash=False, surf=False, strength=False, whirl=False
             assert has_hm(b, n), 'HM%02d not in the bag' % n
             p = party(b)
             order = [i for i in list(range(1, len(p))) + [0] if p[i]['species'] != 0xFD and p[i]['level'] > 5]   # (not the lead first; not the egg)
+            if n in (3, 6, 7):                         # (water HMs: a water Pokémon first - Lapras, Dragonite)
+                o0 = list(order); order = sorted(o0, key=lambda i: (p[i]['species'] not in (131, 149), o0.index(i)))
             for mon in order:
                 if teach(b, n, mon): break
         if n == 1: _bot.CAN_CUT[0] = True

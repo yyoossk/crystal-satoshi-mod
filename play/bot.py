@@ -416,6 +416,21 @@ def _ev(s, n=120, quiet=3, shots=True, key='A'):
 Bot.ev = _ev
 
 
+def conn_ok(s, k, d):
+    """the connection's span on this map's edge: a test for the edge coordinate (None: unknown, accept all)"""
+    try:
+        r = s.db.r; a = _attrs(r, s.db.maps[k]['hdr']); p = a['attr_off'] + 12; fl = a['conn']
+        sb = lambda v: v - 256 if v > 127 else v
+        for bit, dd in ((8, 'U'), (4, 'D'), (2, 'L'), (1, 'R')):
+            if not fl & bit: continue
+            e = r[p:p + 12]; p += 12
+            if dd != d: continue
+            na = _attrs(r, s.db.maps[(e[0], e[1])]['hdr'])
+            if d in 'UD': return lambda c: 0 <= c + sb(e[9]) < 2 * na['w']
+            return lambda c: 0 <= c + sb(e[8]) < 2 * na['h']
+    except Exception: return None
+    return None
+
 def _cross(s, d, hint=None):
     """walk off the map edge in direction d (U/D/L/R); hint = preferred coordinate along the edge"""
     k, x, y = s.where()
@@ -424,6 +439,8 @@ def _cross(s, d, hint=None):
     elif d == 'D': cand = [(i, H - 1) for i in range(W)]
     elif d == 'L': cand = [(0, i) for i in range(H)]
     else: cand = [(W - 1, i) for i in range(H)]
+    ok_ = conn_ok(s, k, d)
+    if ok_: cand = [c for c in cand if ok_(c[0] if d in 'UD' else c[1])]      # (only the stretch of the edge the next map joins)
     cand = [c for c in cand if _ok_cell(G, c[0], c[1]) and s.path(*c, allow_target=False) is not None]
     ref = hint if hint is not None else (x if d in 'UD' else y)
     cand.sort(key=lambda c: abs((c[0] if d in 'UD' else c[1]) - ref))
