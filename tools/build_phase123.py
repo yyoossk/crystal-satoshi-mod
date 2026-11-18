@@ -16,6 +16,11 @@
     Pikachu: Light Ball (2%, was Berry) / Abra, Kadabra: TwistedSpoon (2%) / Ditto: Metal Powder (2%) /
     Chansey: Lucky Punch (23%, Lucky Egg 2% stays) / Jigglypuff: Polkadot Bow (2%) / Machop: Brick Piece (2%) /
     Oddish: Gold Leaf (2%) / Bellsprout: Silver Leaf (2%) / Articuno, Zapdos, Moltres, Mewtwo: BrightPowder (23%).
+10. Fly in Kanto: Crystal shows Kanto's map only once Indigo Plateau's flypoint is visited, else Johto's (in this MOD
+    the whole Kanto story: Johto's map, a flight to Johto, or a crash with no Johto flypoint).  Now Pallet Town's
+    flypoint (visited from the start), and Kanto's first flypoint is the cursor's start (not Indigo Plateau).
+11. The stats screen: a second type (two rows under the first) was hidden by the friendship hearts (kit, row 8): the
+    hearts go one row lower (row 9, above the experience box).
 usage: build_phase123.py IN.gbc OUT.gbc OUT.ips
 """
 import os, sys
@@ -168,6 +173,15 @@ def main():
         if i1 is not None: rom[o + 11] = i1
         if i2 is not None: rom[o + 12] = i2
     log.append('9 wild held items for %d kinds' % len(HELD))
+
+    # 10. Fly: HasVisitedSpawn SPAWN_INDIGO -> SPAWN_PALLET; the start cursor = KANTO_FLYPOINT
+    o = 0x91DE1; expect(rom, o, 'f5 0e 0d cd 6a 5d a7 28 18 3e 0c ea 05 d0 3e 17 ea 06 d0 ea 02 d0')
+    rom[o + 2] = 0x02
+    rom[o + 9:o + 22] = bytes.fromhex('3e 0c ea 05 d0 ea 02 d0 3e 17 ea 06 d0'.replace(' ', ''))
+    # 11. the hearts: hlcoord 9, 8 -> 9, 9
+    expect(rom, 0x25AA23, '21 49 c5'); expect(rom, 0x25AA48, '21 4e c5')
+    rom[0x25AA24] = 0x5D; rom[0x25AA49] = 0x62
+    log.append('10-11 Kanto fly map, hearts row 9')
 
     fix_checksum(rom)
     open(outrom, 'wb').write(rom)

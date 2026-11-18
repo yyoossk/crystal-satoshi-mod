@@ -75,7 +75,7 @@ def main():
     # 8. Bump noise on $3E: DoPlayerMovement.CheckWarp
     o = 0x80226
     expect(rom, o, 'fa 39 d0 5f 16 00 21 5b 42 19 fa d7 d4 be 20 23 3e 01 ea 37 d0 fa 39 d0 fe ff 28 17')
-    rom[o:o + 28] = bytes.fromhex('fa39d0 feff 282c 5f 1600 215b42 19 fad7d4 be 201f 3e01 ea37d0 000000')
+    rom[o:o + 28] = bytes.fromhex('fa39d0 feff 282c 5f 1600 215b42 19 fad7d4 be 201f 3e01 ea37d0 fa39d0')   # (a = wWalkingDirection again for the facing check: warps facing down / left / right)
     # 9. HOF Master: cp HOF_MASTER_COUNT + 1 -> cp HOF_MASTER_COUNT
     o = 0x86882; expect(rom, o, 'fe c9 38'); rom[o + 1] = 0xC8
     # 10. Slots payout: and $7 ; ret z -> ret nz
