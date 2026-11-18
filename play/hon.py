@@ -167,7 +167,8 @@ def run(name, prev):
                      waterfall=H.has_hm(b, 7) and jbadges(b) >= 8)
         print('  hms: cut', _bot.CAN_CUT[0], 'surf', _bot.CAN_SURF[0], flush=True)
         P.known_doors(b)
-        if H.MAX_REPEL not in [i for i, _ in H.items(b)]: H.add_item(b, H.MAX_REPEL, 30)   # (caves: Max Repels, as asked)
+        if H.MAX_REPEL not in [i for i, _ in H.items(b)]: H.add_item(b, H.MAX_REPEL, 30)
+    if 19 not in [i for i, _ in H.items(b)]: H.add_item(b, 19, 10)    # escape ropes (the way out of a floor)   # (caves: Max Repels, as asked)
     f(b)
     b.g.save_state(HST % name)
     print('#### end', name, b.where(), mus(b), 'badges', badges(b), [(q['species'], q['level']) for q in H.party(b)],
@@ -539,6 +540,7 @@ def victory(b):
     H.FLEE[0] = True
     # the user (2026-11-17): use Repel -- Max Repels put in the bag (save-data edit), used from the bag
     if H.MAX_REPEL not in [i for i, _ in H.items(b)]: H.add_item(b, H.MAX_REPEL, 30)
+    if 19 not in [i for i, _ in H.items(b)]: H.add_item(b, 19, 10)    # escape ropes (the way out of a floor)
     P.REPEL[0] = True
     _tr0 = _bot.Bot.travel
     def trr(s, *a, **k):
@@ -557,7 +559,7 @@ def victory(b):
                 if b.flag(2241): return True
                 if r is True: r = False
             elif r is True: return True
-            if r is None: return None
+            if r is None and goal != (23, 15): return None       # (the hole's boulder from 3F's west part: no plan -> again)
             if b.where()[0] in (VR1, VR2, VR3): H.escape_rope(b)     # out of the cave first (walking back is long)
             H.heal_pc(b)
         return False
@@ -1115,10 +1117,16 @@ def jblack(b):
 
 @stage
 def jroad(b):
+    global train
     """New Bark -> Route 27 (Surf), the Tohjo Falls (Waterfall), Route 26, the Victory Road gate, Victory Road, the Indigo
     Plateau"""
     P.SKIPGYM[0] = True; P.REPEL[0] = True
     H.honest_hms(b, cut=True, surf=True, strength=True, whirl=True, waterfall=True)
+    if b.where()[0] in (VR1, VR2, VR3):              # resumed in Victory Road (its save after a floor)
+        _t = train; train = lambda *a, **k: None
+        try: victory(b)
+        finally: train = _t
+        P.REPEL[0] = False; return
     for t in ['NewBarkTown', 'Route27', 'TohjoFalls']:
         r = tour(b, t, visit=False); print('->', t, r, b.where(), flush=True)
     # (the walkthrough: up the waterfall inside, then out by the east mouth - Route 27's east part leads to Route 26)
@@ -1128,7 +1136,6 @@ def jroad(b):
     for t in ['Route26', 'VictoryRoadGate']:
         r = tour(b, t, visit=False); print('->', t, r, b.where(), flush=True)
     # this MOD: the gate's north leads to Route 23 and Red's Victory Road (its boulders again) -- the Kanto stage's way
-    global train
     _t = train; train = lambda *a, **k: None
     try: victory(b)
     finally: train = _t
