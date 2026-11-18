@@ -114,6 +114,7 @@ class Bot:
                 if s.peek(W_MAP, 4) != p0: moved = True; break
                 if SAFESTEP[0] and f == 1: s.g.up(d)
             s.g.up(d); s.wait(16 if moved else 4)
+            if moved: s.settle()
             if not moved and SAFESTEP[0] and not s.textbox():   # the follower in front: holding the key swaps places
                 s.g.down(d)
                 for f in range(20):
@@ -122,6 +123,14 @@ class Bot:
                 s.g.up(d); s.wait(16 if moved else 4)
             ok = ok and moved
         return ok
+
+    def settle(s):
+        """on ice the player slides on after the step: wait until he stands still"""
+        k, x, y = s.where(); G = grid_of(s.db.r, s.db.maps[k]['hdr'])
+        if not (0 <= y < len(G) and 0 <= x < len(G[0]) and G[y][x] == ICE): return
+        for i in range(30):
+            p = s.peek(W_MAP, 4); s.wait(10)
+            if s.peek(W_MAP, 4) == p: return
 
     def face(s, d):
         s.g.down(d); s.wait(5); s.g.up(d); s.wait(14)
@@ -184,7 +193,8 @@ from collections import deque
 import portmaps as _PM
 from portlib import Space as _Space
 from lib import attrs as _attrs
-WALK = {0x00, 0x18, 0x14, 0x10, 0x70, 0x71, 0x7A, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0x7B, 0x7C, 0x7D, 0x7E, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79}
+ICE = 0x23
+WALK = {0x23, 0x00, 0x18, 0x14, 0x10, 0x70, 0x71, 0x7A, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0x7B, 0x7C, 0x7D, 0x7E, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79}
 _GC = {}
 WALLS = {0xB0: 'R', 0xB1: 'L', 0xB2: 'U', 0xB3: 'D', 0xB4: 'DR', 0xB5: 'DL', 0xB6: 'UR', 0xB7: 'UL'}
 OPPD = {'R': 'L', 'L': 'R', 'U': 'D', 'D': 'U'}
@@ -471,6 +481,8 @@ def _moves(G, x, y):
         nx, ny = x + dx, y + dy
         if not _ok_cell(G, nx, ny): continue
         if wall_block(G, x, y, nx, ny, d): continue
+        while G[ny][nx] == ICE and _ok_cell(G, nx + dx, ny + dy) and not wall_block(G, nx, ny, nx + dx, ny + dy, d):
+            nx, ny = nx + dx, ny + dy                   # (ice: the player slides on until something stops him)
         out.append((d, (nx, ny)))
     return out
 def _reach_set(G, starts):

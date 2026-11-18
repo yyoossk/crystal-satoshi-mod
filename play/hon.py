@@ -154,6 +154,9 @@ def run(name, prev):
     if H.has_hm(b, 1): H.honest_hms(b, cut=True)          # the bot may cut trees once a party member knows Cut
     if H.has_hm(b, 3) and H.badges_ok_surf(b): H.honest_hms(b, cut=True, surf=True)
     if H.has_hm(b, 4) and badges(b) >= 4: H.honest_hms(b, cut=True, surf=H.has_hm(b, 3) and H.badges_ok_surf(b), strength=True)
+    if name.startswith('j'):                             # Johto: the Kanto HMs are in the bag from the start
+        H.honest_hms(b, cut=H.has_hm(b, 1), surf=H.has_hm(b, 3), strength=H.has_hm(b, 4))
+        print('  hms: cut', _bot.CAN_CUT[0], 'surf', _bot.CAN_SURF[0], flush=True)
     f(b)
     b.g.save_state(HST % name)
     print('#### end', name, b.where(), mus(b), 'badges', badges(b), [(q['species'], q['level']) for q in H.party(b)],
@@ -706,7 +709,10 @@ FF_NEXT = {1: {}, 2: {'D': 8}, 3: {'L': 2}, 4: {'U': 3}, 5: {'U': 4, 'L': 7, 'R'
            8: {'U': 2, 'L': 2, 'R': 7}, 9: {'D': 8, 'R': 8}}
 DV = {'U': (0, -1), 'D': (0, 1), 'L': (-1, 0), 'R': (1, 0)}
 def talk_at(b, x, y, dirs='UDLR'):
-    """walk next to (x, y) so that the player faces one of `dirs`, and press A"""
+    """walk next to (x, y) so that the player faces one of `dirs`, and press A (a person standing a step away from
+    his map spot - e.g. the B3F grunt at (5,15) - is talked to where he is)"""
+    near = [p for p in b.objpos() if abs(p[0] - x) + abs(p[1] - y) <= 2]
+    if near and (x, y) not in near: x, y = min(near, key=lambda p: abs(p[0] - x) + abs(p[1] - y))
     for d in dirs:
         dx, dy = DV[d]
         if P.sgoto(b, x - dx, y - dy):
@@ -794,6 +800,16 @@ def jmorty(b):
     gym_try(b, 'EcruteakGym'); print('johto badges after Morty', jbadges(b), flush=True)
     if jbadges(b) < 4: issue('no Fog Badge')
 
+LIGHTHOUSE = ['OlivineLighthouse%dF' % i for i in range(1, 7)]
+def lighthouse(b):
+    """Olivine Lighthouse: up to Jasmine (6F) - Crystal's way goes out over the ledges and down a hole on 5F,
+    so the floors are planned room by room (stairs, holes)"""
+    maps = {b.mapk(m) for m in LIGHTHOUSE}
+    if b.where()[0] not in maps: tour(b, 'OlivineLighthouse1F', visit=False)
+    import bot as _bb
+    _bb.PRECISE[0] = True                                 # (5F: the stairs up are just past a hole)
+    try: P.region_go(b, b.mapk('OlivineLighthouse6F'), [(8, 9), (9, 9), (9, 10)], maps, town='OlivineCity')
+    finally: _bb.PRECISE[0] = False
 @stage
 def jolive(b):
     """Olivine (Crystal): the Lighthouse - Jasmine on 6F with the sick Ampharos; Surf to Cianwood (Routes 40/41),
@@ -803,7 +819,7 @@ def jolive(b):
     for t in ['Route38', 'Route39', 'OlivineCity']:
         r = tour(b, t); print('->', t, r, b.where(), flush=True)
     visit_town(b, 'OlivineCity')
-    r = tour(b, 'OlivineLighthouse6F'); print('-> Lighthouse 6F', r, b.where(), flush=True)
+    lighthouse(b); print('-> Lighthouse 6F', b.where(), flush=True)
     talk_map(b); ev(b, 60)
     if H.has_hm(b, 3): H.honest_hms(b, cut=True, surf=True)
     r = tour(b, 'CianwoodCity'); print('-> CianwoodCity', r, b.where(), flush=True)
@@ -815,11 +831,107 @@ def jolive(b):
     b.seen.discard(b.mapk('CianwoodPharmacy'))
     tour(b, 'CianwoodPharmacy'); talk_map(b); ev(b, 60)
     b.seen.discard(b.mapk('OlivineLighthouse6F'))
-    r = tour(b, 'OlivineLighthouse6F'); print('-> Lighthouse 6F again', r, b.where(), flush=True)
+    lighthouse(b); print('-> Lighthouse 6F again', b.where(), flush=True)
     talk_map(b); ev(b, 80); talk_map(b); ev(b, 60)
     P.SKIPGYM[0] = False
     gym_try(b, 'OlivineGym'); print('johto badges after Jasmine', jbadges(b), flush=True)
     if jbadges(b) < 6: issue('no Mineral Badge')
+
+CIANWOOD_PUSHES = [(3, 7, 'U'), (5, 7, 'U'), (4, 7, 'L')]     # (worked out by a push search: the row of three boulders)
+def cianwood_boulders(b):
+    """Chuck's gym: the only way up is (4,5); the three boulders on row 7 shut it: push the left and right ones up,
+    then the middle one left (Strength)"""
+    for t in range(3):                                    # (stand where the row of boulders is on screen; beat the trainer at (3,9))
+        if P.safe_goto(b, 4, 10, tries=12) or b.where()[1:] == (4, 10): break
+        ev(b, 40)
+    if (4, 7) not in b.objpos(): print('  cianwood boulders: not in place', b.where(), b.objpos(), flush=True); return True
+    old = P.boulder_plan; P.boulder_plan = lambda *a, **k: list(CIANWOOD_PUSHES)
+    try: r = P.push_boulders(b, [(5, 1), (3, 7), (4, 7), (5, 7)], None, others=[(4, 1), (2, 12), (7, 12), (3, 9), (5, 5)])
+    finally: P.boulder_plan = old
+    print('  cianwood boulders', r, b.objpos(), flush=True); return r
+@stage
+def jchuck(b):
+    """Chuck (Cianwood Gym: Strength boulders), then his wife (HM02 Fly: not a second copy, phase 115)"""
+    b.bank1(); hm2 = b.peek(H.TMHM + 51)[0]
+    H.honest_hms(b, cut=True, surf=True, strength=True)
+    for t in range(3):
+        b.bank1()
+        if (b.peek(0xD84A)[0] >> 5) & 1: break
+        r = tour(b, 'CianwoodGym', visit=False); print('-> CianwoodGym', r, b.where(), flush=True)
+        cianwood_boulders(b)
+        P.SKIPGYM[0] = False
+        talk_map(b); ev(b, 60)
+        b.bank1()
+        if (b.peek(0xD84A)[0] >> 5) & 1: break                   # (the Storm Badge bit)
+        H.heal_pc(b); b.seen.discard(b.mapk('CianwoodGym'))
+    print('johto badges after Chuck', jbadges(b), flush=True)
+    P.SKIPGYM[0] = True
+    b.seen.discard(b.mapk('CianwoodCity')); visit_town(b, 'CianwoodCity')
+    b.bank1(); print('HM02 count', b.peek(H.TMHM + 51)[0], 'before', hm2, flush=True)
+    if hm2 and b.peek(H.TMHM + 51)[0] != hm2: issue('a second HM02 in Johto')
+
+def read_bg(b, x, y, d):
+    """stand next to a sign/door (x, y) facing d (U/D/L/R) and press A"""
+    dx, dy = {'U': (0, -1), 'D': (0, 1), 'L': (-1, 0), 'R': (1, 0)}[d]
+    ok = False
+    for t in range(3):                                    # (goto: item balls already picked up do not block)
+        if b.goto(x - dx, y - dy, tries=20): ok = True; break
+        ev(b, 40)
+    if not ok: print('  cannot reach', (x - dx, y - dy), b.where(), flush=True); return False
+    b.face(d); b.wait(10); b.press('A', 40); ev(b, 80)
+    P.live_grid(b); return True                           # (a door opened by a script: its blocks changed in RAM)
+def hideout(b):
+    """Rocket hideout (Crystal's TeamRocketBase*.asm): B3F - the two grunts' passwords (Slowpoketail, Raticate tail),
+    the locked door (bg (10,9)), the executive at (10,8), Murkrow's password; B2F - the locked door (bg (14,12)),
+    the three Electrode with Lance"""
+    b3, b2 = b.mapk('TeamRocketBaseB3F'), b.mapk('TeamRocketBaseB2F')
+    P.REPEL[0] = True
+    for rnd in range(3):
+        b.seen.discard(b3); tour(b, 'TeamRocketBaseB3F'); print('  B3F', b.where(), flush=True)
+        for xy in ((21, 7), (5, 14)):                                     # the passwords: battle, then talk again
+            for k_ in range(2): talk_at(b, *xy); ev(b, 60)
+        rooms = {b.mapk('TeamRocketBaseB1F'), b2, b3}
+        P.region_go(b, b3, [(10, 10)], rooms, town='MahoganyTown', people=False)   # (the door's side of B3F: by B2F's west stairs)
+        read_bg(b, 10, 9, 'U'); print('  B3F door', b.where(), flush=True)
+        b.goto(10, 8, tries=20); ev(b, 120)                                 # the executive
+        for k_ in range(3):                                                 # Murkrow: "Hail Giovanni" (the executive walks off first)
+            ev(b, 60); b.wait(60)
+            if talk_at(b, 7, 2, 'U'): ev(b, 60); break
+        P.region_go(b, b2, [(14, 13)], rooms, town='MahoganyTown', people=False); print('  B2F', b.where(), flush=True)
+        read_bg(b, 14, 12, 'U'); print('  B2F door', b.where(), flush=True)
+        b.goto(14, 12, tries=20); ev(b, 120)
+        talk_map(b); ev(b, 80); talk_map(b); ev(b, 80)                      # the Electrode, Lance
+        b.bank1(); print('  whirlpool?', H.has_hm(b, 6), flush=True)
+        if H.has_hm(b, 6): break
+    P.REPEL[0] = False
+    return H.has_hm(b, 6)
+
+@stage
+def jmahog(b):
+    """Mahogany (Crystal, checked against the walkthroughs): Route 42 (Mt. Mortar's foot), Mahogany Town; Route 43's
+    gate (the Rockets' toll), the Lake of Rage - the red Gyarados, then Lance; the souvenir shop's stairs (Lance) to
+    the Rocket hideout: B1F (Persian statues, the security computer), B2F (Lance heals), B3F (the two passwords, the
+    executive's room, Murkrow's password), back to B2F's generator (three Electrode with Lance: HM06 Whirlpool)"""
+    P.SKIPGYM[0] = True
+    for t in ['Route42', 'MahoganyTown']:
+        r = tour(b, t); print('->', t, r, b.where(), flush=True)
+    visit_town(b, 'MahoganyTown')
+    for t in ['Route43', 'LakeOfRage']:
+        r = tour(b, t); print('->', t, r, b.where(), flush=True)
+    for k in range(3): talk_map(b); ev(b, 80)
+    print('lake done', b.where(), flush=True)
+    r = tour(b, 'MahoganyMart1F'); print('-> MahoganyMart1F', r, b.where(), flush=True)
+    talk_map(b); ev(b, 80)
+    P.REPEL[0] = True
+    for t in ['TeamRocketBaseB1F', 'TeamRocketBaseB2F']:
+        r = tour(b, t); print('->', t, r, b.where(), flush=True)
+        talk_map(b); ev(b, 60)
+    P.REPEL[0] = False
+    hideout(b)
+    if not H.has_hm(b, 6): issue('no HM06 (the hideout not cleared)')
+    P.SKIPGYM[0] = False
+    gym_try(b, 'MahoganyGym'); print('johto badges after Pryce', jbadges(b), flush=True)   # (the ice floor: the planner slides)
+    if jbadges(b) < 7: issue('no Glacier Badge')
 
 def pad_talks(b, people):
     """Saffron Gym: walk by the pads (wgoto) next to each person and talk"""

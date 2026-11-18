@@ -518,17 +518,19 @@ def region_plan(b, target, cells, maps, people=True):
             while prev[n]: p, act = prev[n]; path.append(act); n = p
             return path[::-1]
         near = lambda x, y: any((x + dx, y + dy) in R for dx, dy in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)))
+        LW = b.live_warps(k)
         for wx, wy, idx, g, m in b.db.warps(k):
             if (g, m) not in maps or not near(wx, wy) or idx - 1 >= len(b.db.warps((g, m))): continue
+            if (wx, wy) not in LW: continue                  # (a warp on plain floor is only an arrival spot)
             ax, ay = b.db.warps((g, m))[idx - 1][:2]
             n2, R2 = node((g, m), [(ax, ay)])
             if n2 not in prev: prev[n2] = (n, (k, wx, wy)); q.append((n2, R2))
     return None
-def region_go(b, target, cells, maps, steps=20, people=True):
-    """walk floor by floor (pads, stairs) to the room of `target` that holds one of `cells`"""
+def region_go(b, target, cells, maps, steps=20, people=True, town='SaffronCity'):
+    """walk floor by floor (pads, stairs, holes) to the room of `target` that holds one of `cells`"""
     for i in range(steps):
         if b.where()[0] not in maps:
-            entry = [m for m in maps if any((w[3], w[4]) == m for w in b.db.warps(b.mapk('SaffronCity')))]
+            entry = [m for m in maps if any((w[3], w[4]) == m for w in b.db.warps(b.mapk(town)))]
             tour(b, entry[0] if entry else target, visit=False)
         import bot as _bb
         for m in maps:                                   # other floors: their rooms as built (doors open once the key is had)
