@@ -1190,7 +1190,7 @@ def warp_to(b, k, x, y):
         if b.where()[0] == k: return True
         b.step(d); b.wait(30)
     return False
-W_START_DAY, W_CUR_DAY = 0xD4A9, 0xD4BE          # JP = US - $0D (wStartDay / wCurDay; weekday = wCurDay mod 7)
+W_START_DAY, W_CUR_DAY = 0xD4AE, 0xD4BE          # (JP FixTime: ld a, [$D4AE] ; adc c ; ld [$D4BE], a) (wStartDay / wCurDay; weekday = wCurDay mod 7)
 def set_weekday(b, wd):
     """the game's weekday (0 = Sunday): the start day moved, as if the clock were set on another day"""
     b.bank1(); cur = b.peek(W_CUR_DAY)[0] % 7
