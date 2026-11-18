@@ -117,5 +117,6 @@ python3 build_phase117.py ../build/p116.gbc ../build/p117.gbc ../build/p117.ips 
 python3 build_phase118.py ../build/p117.gbc ../build/p118.gbc ../build/p118.ips   # グリーン（再戦）の レベルを クリスタルどおりに
 python3 build_phase119.py ../build/p118.gbc ../build/p119.gbc ../build/p119.ips   # クリスタル元からの バグ（たたかい・AI）
 python3 build_phase120.py ../build/p119.gbc ../build/p120.gbc ../build/p120.ips   # クリスタル元からの バグ（そのほか）
-cp ../build/p120.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase121.py ../build/p120.gbc ../build/p121.gbc ../build/p121.ips   # クリスタル元からの バグ（こんらん・イブキ・マニア・いろ）
+cp ../build/p121.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
