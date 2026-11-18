@@ -293,6 +293,15 @@ def _goto(s, tx, ty, tries=40, stop_battle=True):
                     s.press('A', 40)
                 s.press('A', 60); s.clear_text(shots=False); s.wait(60)
                 if hasattr(s, 'refresh_grid'): s.refresh_grid()
+            if 0 <= cy < len(G_) and 0 <= cx < len(G_[0]) and ((CAN_WHIRL[0] and G_[cy][cx] == 0x24) or
+                                                            (CAN_FALL[0] and G_[cy][cx] == 0x33 and G_[k0[2]][k0[1]] != 0x33)):
+                s.face(d); s.press('A', 60)                  # (Whirlpool / Waterfall from the field: 「つかいますか？」 -> はい)
+                for i_ in range(6):
+                    if s.has('はい'): break
+                    s.press('A', 40)
+                s.press('A', 60); s.clear_text(shots=False); s.wait(120)
+                if hasattr(s, 'refresh_grid'): s.refresh_grid()
+                if s.where() != k0: break
             if CAN_SURF[0] and 0 <= cy < len(G_) and 0 <= cx < len(G_[0]) and G_[cy][cx] in WATER and G_[k0[2]][k0[1]] not in WATER:
                 s.face(d); s.press('A', 60)
                 for i_ in range(6):
@@ -470,8 +479,9 @@ NOHEAL = [False]           # True: battles leave the party as it is (playthrough
 from mapdb import connections as _conns
 HOPD = {0xA0: (1, 0), 0xA1: (-1, 0), 0xA2: (0, -1), 0xA3: (0, 1)}
 CAN_CUT = [False]; CAN_SURF = [False]; WATER = {0x29}
+CAN_WHIRL = [False]; CAN_FALL = [False]     # HM06 Whirlpool (whirlpool tiles $24), HM07 Waterfall ($33)
 def _ok_cell(G, x, y):
-    return 0 <= y < len(G) and 0 <= x < len(G[0]) and (G[y][x] in WALK or G[y][x] in HOPD or (CAN_CUT[0] and G[y][x] == 0x12)
+    return 0 <= y < len(G) and 0 <= x < len(G[0]) and (G[y][x] in WALK or G[y][x] in HOPD or (CAN_CUT[0] and G[y][x] == 0x12) or (CAN_WHIRL[0] and G[y][x] == 0x24) or (CAN_FALL[0] and G[y][x] == 0x33)
                                                        or (CAN_SURF[0] and G[y][x] in WATER))
 def _moves(G, x, y):
     """[(dir, dest)] from (x, y): hop tiles are walked on and jumped from (Crystal: the jump starts on the ledge tile)"""

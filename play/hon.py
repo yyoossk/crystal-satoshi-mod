@@ -155,7 +155,8 @@ def run(name, prev):
     if H.has_hm(b, 3) and H.badges_ok_surf(b): H.honest_hms(b, cut=True, surf=True)
     if H.has_hm(b, 4) and badges(b) >= 4: H.honest_hms(b, cut=True, surf=H.has_hm(b, 3) and H.badges_ok_surf(b), strength=True)
     if name.startswith('j'):                             # Johto: the Kanto HMs are in the bag from the start
-        H.honest_hms(b, cut=H.has_hm(b, 1), surf=H.has_hm(b, 3), strength=H.has_hm(b, 4))
+        H.honest_hms(b, cut=H.has_hm(b, 1), surf=H.has_hm(b, 3), strength=H.has_hm(b, 4), whirl=H.has_hm(b, 6) and jbadges(b) >= 7,
+                     waterfall=H.has_hm(b, 7) and jbadges(b) >= 8)
         print('  hms: cut', _bot.CAN_CUT[0], 'surf', _bot.CAN_SURF[0], flush=True)
         P.known_doors(b)
         if H.MAX_REPEL not in [i for i, _ in H.items(b)]: H.add_item(b, H.MAX_REPEL, 30)   # (caves: Max Repels, as asked)
@@ -1026,6 +1027,68 @@ def jice(b):
     r = tour(b, 'BlackthornCity', visit=False); print('-> BlackthornCity', r, b.where(), flush=True)
     P.REPEL[0] = False
     if not H.has_hm(b, 7): issue('no HM07 Waterfall')
+
+GYM_BOULDERS = [((8, 2), (8, 3)), ((2, 3), (2, 5)), ((6, 16), (8, 7))]     # Blackthorn Gym 2F's stone table: boulder -> hole
+QUIZ = [0, 0, 1, 0, 1]          # Dragon Shrine (DragonShrine.asm): the right answer's row in each of the five questions
+def shrine_quiz(b):
+    """the elder's five questions (DragonShrine.asm): each is a 3-row menu; answer the script's right row"""
+    n = 0; seen_menu = False
+    for i in range(200):
+        if b.in_battle(): b.battle(); continue
+        t = b.tilemap()
+        cur = [k for k in range(360) if t[k] == 0xED]                     # the menu cursor
+        if cur and not (b.has('はい') and b.has('いいえ')) and n < 5:
+            row0 = cur[0] // 20
+            for k_ in range(QUIZ[n]): b.press('D', 15)
+            b.press('A', 40); n += 1; print('  quiz answer', n, QUIZ[n - 1], flush=True); continue
+        if b.has('はい') and b.has('いいえ'): b.press('A', 40); continue
+        if b.textbox(): b.press('A', 30)
+        else:
+            b.wait(30)
+            if not b.textbox() and not b.in_battle(): break
+    return n
+@stage
+def jblack(b):
+    """Blackthorn (Crystal): Clair's gym - 2F's three boulders into their holes (they make the bridges on 1F), Clair;
+    she sends you to the Dragon's Den: Surf, Whirlpool, the Dragon Shrine's elder and his five questions; then Clair
+    gives the Rising Badge"""
+    P.SKIPGYM[0] = True; P.REPEL[0] = True
+    r = tour(b, 'BlackthornCity'); print('-> BlackthornCity', r, b.where(), flush=True)
+    gyms = {b.mapk('BlackthornGym1F'), b.mapk('BlackthornGym2F')}
+    P.GYM_BRIDGES[0] = jbadges(b) >= 8
+    tour(b, 'BlackthornGym1F', visit=False)
+    P.region_go(b, b.mapk('BlackthornGym2F'), [(1, 8), (2, 7)], gyms, town='BlackthornCity', people=False)
+    print('-> gym 2F', b.where(), flush=True)
+    # (a push search over all six boulders - the three others must move too - found these 22 pushes)
+    plan = [((3, 3), 'U'), ((3, 2), 'U'), ((2, 3), 'D'), ((2, 4), 'D'), ((6, 1), 'R'), ((7, 1), 'R'), ((8, 1), 'R'), ((8, 2), 'D'),
+            ((8, 14), 'D'), ((8, 15), 'D'), ((8, 16), 'D'), ((6, 16), 'U'), ((6, 15), 'U'), ((6, 14), 'U'), ((6, 13), 'U'),
+            ((6, 12), 'U'), ((6, 11), 'U'), ((6, 10), 'U'), ((6, 9), 'U'), ((6, 8), 'U'), ((6, 7), 'R'), ((7, 7), 'R')]
+    old = P.boulder_plan; P.boulder_plan = lambda *a, **k: [(x, y, d) for (x, y), d in plan]
+    try: r = P.push_boulders(b, [(8, 2), (2, 3), (6, 16), (3, 3), (6, 1), (8, 14)], None, others=[(4, 1), (4, 11)], minhp=0.0)
+    finally: P.boulder_plan = old
+    print('  gym boulders', r, b.where(), flush=True)
+    P.GYM_BRIDGES[0] = True
+    P.SKIPGYM[0] = False; P.REPEL[0] = False
+    g1 = b.mapk('BlackthornGym1F')
+    for t in range(3):                                    # (1F: the fallen boulders' blocks are set by the map's callback)
+        if b.where()[0] != g1: P.region_go(b, g1, [(5, 4), (4, 4)], gyms, town='BlackthornCity', people=False)
+        P.live_grid(b); talk_map(b); ev(b, 80)
+        if any(v[1] > 80 for v in [(0, 0)]): pass
+        print('  clair try', t, b.where(), flush=True)
+        if P.live_grid(b) is not None and talk_at(b, 5, 3): ev(b, 80)
+    print('johto badges after Clair', jbadges(b), flush=True)
+    den = {b.mapk(m) for m in ('DragonsDen1F', 'DragonsDenB1F', 'DragonShrine')}
+    P.REPEL[0] = True
+    tour(b, 'DragonsDen1F', visit=False)
+    P.region_go(b, b.mapk('DragonShrine'), [(4, 8), (5, 8), (4, 7)], den, town='BlackthornCity', people=False)
+    P.REPEL[0] = False
+    print('-> Dragon Shrine', b.where(), flush=True)
+    ev(b, 20); n = shrine_quiz(b)
+    if n < 5: talk_at(b, 5, 1); n += shrine_quiz(b)
+    print('quiz answers', n, flush=True)
+    for k_ in range(4): ev(b, 60); talk_map(b)
+    print('johto badges after the Dragon Shrine', jbadges(b), flush=True)
+    if jbadges(b) < 8: issue('no Rising Badge')
 
 def pad_talks(b, people):
     """Saffron Gym: walk by the pads (wgoto) next to each person and talk"""

@@ -272,7 +272,9 @@ def _keyitem(b, i): b.bank1(); return i in b.peek(0xD8B0, 0x1B)
 KNOWN_DOORS = [('RadioTower3F', lambda b: _keyitem(b, 0x7F) and __import__('honest').has_hm(b, 6) and _keyitem(b, 0x46), [(14, 2, 0x2A), (14, 4, 0x01)]),
                ('TeamRocketBaseB3F', lambda b: __import__('honest').has_hm(b, 6), [(10, 8, 0x07)]),
                ('TeamRocketBaseB2F', lambda b: __import__('honest').has_hm(b, 6), [(14, 12, 0x07)]),
-               ('GoldenrodUnderground', lambda b: _keyitem(b, 0x7F), [(18, 6, 0x2E)])]
+               ('GoldenrodUnderground', lambda b: _keyitem(b, 0x7F), [(18, 6, 0x2E)]),
+               ('BlackthornGym1F', lambda b: GYM_BRIDGES[0], [(8, 2, 0x3B), (2, 4, 0x3A), (8, 6, 0x3B)])]   # (2F's boulders fell)
+GYM_BRIDGES = [False]
 def patch_blocks(b, name, blocks):
     import bot as _b
     k = b.mapk(name); m = b.db.maps.get(k)

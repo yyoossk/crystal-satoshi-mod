@@ -300,19 +300,21 @@ def teach(b, n, mon):
 
 def badges_ok_surf(b):
     b.bank1(); return bin(b.peek(0xD84B)[0]).count('1') >= 5     # Soul Badge for Surf
-def honest_hms(b, cut=True, flash=False, surf=False, strength=False):
-    want = [(1, cut), (3, surf), (4, strength), (5, flash)]
+def honest_hms(b, cut=True, flash=False, surf=False, strength=False, whirl=False, waterfall=False):
+    want = [(1, cut), (3, surf), (4, strength), (5, flash), (6, whirl), (7, waterfall)]
     for n, w in want:
         if not w: continue
         mv = HM_MOVE[n]
         if not knows(b, mv):
             assert has_hm(b, n), 'HM%02d not in the bag' % n
             p = party(b)
-            order = list(range(1, len(p))) + [0]           # not the lead first (it keeps its attacks)
+            order = [i for i in list(range(1, len(p))) + [0] if p[i]['species'] != 0xFD and p[i]['level'] > 5]   # (not the lead first; not the egg)
             for mon in order:
                 if teach(b, n, mon): break
         if n == 1: _bot.CAN_CUT[0] = True
         if n == 3: _bot.CAN_SURF[0] = True
+        if n == 6: _bot.CAN_WHIRL[0] = True
+        if n == 7: _bot.CAN_FALL[0] = True
 
 # ---------------------------------------------------------------- levels
 def grass_spot(b, k):
