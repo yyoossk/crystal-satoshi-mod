@@ -120,5 +120,6 @@ python3 build_phase120.py ../build/p119.gbc ../build/p120.gbc ../build/p120.ips 
 python3 build_phase121.py ../build/p120.gbc ../build/p121.gbc ../build/p121.ips   # クリスタル元からの バグ（こんらん・イブキ・マニア・いろ）
 python3 build_phase122.py ../build/p121.gbc ../build/p122.gbc ../build/p122.ips   # ジムの 案内の 人が 赤の わざマシンの わざを おしえる
 python3 build_phase123.py ../build/p122.gbc ../build/p123.gbc ../build/p123.ips   # 報告の直し（はじめの部屋・テキスト・シゲル・オーキド・連れ歩き・研究所・タイムカプセルの道具）
-cp ../build/p123.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase124.py ../build/p123.gbc ../build/p124.gbc ../build/p124.ips   # メニューから B で もどると 赤の タイトル画面
+cp ../build/p124.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
