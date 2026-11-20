@@ -123,3 +123,4 @@ python3 build_phase123.py ../build/p122.gbc ../build/p123.gbc ../build/p123.ips 
 python3 build_phase124.py ../build/p123.gbc ../build/p124.gbc ../build/p124.ips   # メニューから B で もどると 赤の タイトル画面
 cp ../build/p124.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
+python3 build_mbc5.py ../build/p124.gbc ../build/p124_mbc5.gbc ../build/p124_mbc5.ips   # MBC5 版（時計は遊んだ時間で進む）
