@@ -122,6 +122,7 @@ python3 build_phase122.py ../build/p121.gbc ../build/p122.gbc ../build/p122.ips 
 python3 build_phase123.py ../build/p122.gbc ../build/p123.gbc ../build/p123.ips   # 報告の直し（はじめの部屋・テキスト・シゲル・オーキド・連れ歩き・研究所・タイムカプセルの道具）
 python3 build_phase124.py ../build/p123.gbc ../build/p124.gbc ../build/p124.ips   # メニューから B で もどると 赤の タイトル画面
 python3 build_phase125.py ../build/p124.gbc ../build/p125.gbc ../build/p125.ips   # 赤の音楽の間に VBlank の farcall で落ちる（荷物をわたすとき）のを直す
-cp ../build/p125.gbc "../build/クリスタル_サトシMOD.gbc"
+python3 build_phase126.py ../build/p125.gbc ../build/p126.gbc ../build/p126.ips   # 報告の直し（たいあたり・22番道路のゲート・26番道路・案内人と連れ歩き・だれかのパソコン・ニドラン）
+cp ../build/p126.gbc "../build/クリスタル_サトシMOD.gbc"
 python3 -c "import zlib,sys;print('CRC32 %08X' % zlib.crc32(open(sys.argv[1],'rb').read()))" "../build/クリスタル_サトシMOD.gbc"
-python3 build_mbc5.py ../build/p125.gbc ../build/p125_mbc5.gbc ../build/p125_mbc5.ips   # 時計機能なし版（MBC5・時計は遊んだ時間で進む）
+python3 build_mbc5.py ../build/p126.gbc ../build/p126_mbc5.gbc ../build/p126_mbc5.ips   # 時計機能なし版（MBC5・時計は遊んだ時間で進む）

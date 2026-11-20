@@ -5,7 +5,7 @@ from t64a import *
 from kt import sheet, uniq, seq
 import bot as _bot
 _bot.NOHEAL[0] = True
-ROM = os.environ.get('PTROM', 'p125')
+ROM = os.environ.get('PTROM', 'p126')
 make_test_rom(SC+'/build/%s.gbc' % ROM)
 ST = SC + '/play/pt_%s.st'
 def B(prev, tag):
