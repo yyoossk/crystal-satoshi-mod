@@ -23,6 +23,7 @@ TS_Customs2::
 	ldh [hLCDCPointer], a
 	ld e, $2d
 TS_Common:
+	push bc                           ; bc = the effect's struct (the callers use it after this)
 	push de
 	call CheckTurn
 	pop de
@@ -79,6 +80,9 @@ TS_Common:
 	ldh [hLYOverStart], a
 	ld a, e
 	ldh [hLYOverEnd], a
+	pop bc
+	call CheckTurn                    ; as Crystal's: hl = the struct's turn byte, its flags
+	ldh a, [hLYOverEnd]
 	ret
 
 ; hl = wTilemap address of the first tile, c = tiles -> d = the lines with a dot (bit 7 = the tiles' line 0)
